@@ -16,3 +16,7 @@
 ```bash
 pip install -r requirements.txt
 streamlit run src/app.py
+
+## 📅 数据更新记录
+- 2026-10-13：载入2024-2026年历史数据集（共37条）。
+- 后续计划：每周手动更新一次新发地或惠农网的最新报价。
