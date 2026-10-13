@@ -8,6 +8,11 @@ st.set_page_config(page_title="蓝莓市场行情看板", layout="wide", page_ic
 # 每 60 秒自动刷新
 st_autorefresh(interval=60 * 1000, key="data_refresh")
 
+# ===== 新增：展示蓝莓 Logo =====
+# st.image("src/assets/blueberry_logo.png", width=150)
+
+st.title("🫐 蓝莓市场行情动态看板")
+
 # 加载数据
 df = load_data()
 if df.empty:
