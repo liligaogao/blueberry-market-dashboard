@@ -39,4 +39,4 @@ pg.run()
 
 # 页脚（所有页面共享）
 st.sidebar.markdown("---")
-st.sidebar.caption("数据来源：农业农村部及公开农产品信息平台")
+st.sidebar.caption("数据来源：农业农村部、北京新发地市场及公开农产品信息平台 | 数据仅供学习交流，不构成投资或商业建议。")
