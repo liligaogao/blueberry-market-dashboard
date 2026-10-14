@@ -42,17 +42,42 @@ st.plotly_chart(fig1, use_container_width=True)
 # ========== 图2：各产区均价与价格区间对比（分组柱状图） ==========
 st.subheader("各产区均价与价格区间对比")
 
-# 1. 准备数据：在 melt 之前，先填补缺失的最高/最低价
-origin_summary_sorted["最高价"] = origin_summary_sorted["最高价"].fillna(origin_summary_sorted["均价"])
-origin_summary_sorted["最低价"] = origin_summary_sorted["最低价"].fillna(origin_summary_sorted["均价"])
-
-# 2. 然后再进行 melt
+# 1. 把数据“融化”成长表，方便分组画图
 melted_df = origin_summary_sorted.melt(
     id_vars=["产地"],
     value_vars=["均价", "最高价", "最低价"],
     var_name="价格类型",
     value_name="价格"
 )
+
+# 2. 画分组柱状图
+fig2 = px.bar(
+    melted_df,
+    x="价格",
+    y="产地",
+    color="价格类型",
+    barmode="group",
+    orientation="h",
+    text="价格",
+    labels={"价格": "价格 (元/公斤)", "产地": "", "价格类型": "指标"}
+)
+
+# 👇 修改1：增大柱状图上数字标签的字号，并让数字显示更清晰
+fig2.update_traces(
+    texttemplate='%{text:.1f}',
+    textposition='outside',
+    textfont=dict(size=14)  # 字号从默认的 12 调大到 14
+)
+
+# 👇 修改2：增大全局字体（坐标轴、图例、标题），并拉高图表
+fig2.update_layout(
+    height=700,  # 高度从 500 提高到 700，避免三根柱子挤在一起
+    font=dict(size=14),  # 全局字号统一调大
+    xaxis_title="价格 (元/公斤)",
+    yaxis_title="",
+    legend_title=""
+)
+st.plotly_chart(fig2, use_container_width=True)
 
 # 3. 画分组柱状图
 fig2 = px.bar(
