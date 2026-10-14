@@ -9,47 +9,53 @@ if filtered_df is None or filtered_df.empty:
     st.warning("当前筛选条件下暂无数据。")
     st.stop()
 
-retail_channels = ["济南大润发", "盒马鲜生", "上海市场", "北京新发地"]
+# 扩充零售渠道名单
+retail_channels = [
+    "济南大润发", "盒马鲜生", "上海市场", "北京新发地",
+    "济南超市", "深圳盒马", "济南堤口", "全国超市"
+]
 retail_df = filtered_df[filtered_df["产地"].isin(retail_channels)].copy()
+
 if retail_df.empty:
-    st.info("暂无零售端数据。")
+    st.info("暂无零售端数据。请尝试在左侧筛选栏中勾选以上零售渠道。")
     st.stop()
 
 # 提取果径数值
 retail_df["果径"] = retail_df["品种规格"].str.extract(r'(\d+)mm').astype(float)
-retail_df = retail_df.dropna(subset=["果径", "均价(元/kg)"])
+retail_analysis = retail_df.dropna(subset=["果径", "均价(元/kg)"])
 
 # ========== 图1：果径 vs 价格（带趋势线） ==========
 st.subheader("果径大小 vs 零售价格")
+if not retail_analysis.empty:
+    fig = px.scatter(
+        retail_analysis, x="果径", y="均价(元/kg)",
+        color="产地", size="均价(元/kg)",
+        hover_data=["品种规格"],
+        labels={"果径": "果径 (mm)", "均价(元/kg)": "价格 (元/公斤)"},
+        trendline="ols"
+    )
+    fig.update_layout(height=500)
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("暂无包含果径规格(mm)的数据。")
 
-fig = px.scatter(
-    retail_df, x="果径", y="均价(元/kg)",
-    color="产地", size="均价(元/kg)",
-    hover_data=["品种规格"],
-    labels={"果径": "果径 (mm)", "均价(元/kg)": "价格 (元/公斤)"},
-    trendline="ols"  # 自动加一条趋势线
-)
-fig.update_layout(height=450)
-st.plotly_chart(fig, use_container_width=True)
-
-# ========== 图2：各渠道同规格价格对比（分组柱状图） ==========
+# ========== 图2：各渠道同规格价格对比 ==========
 st.subheader("各渠道同规格价格对比")
-
 # 按规格排序
 retail_df["规格排序"] = retail_df["果径"].fillna(0)
-retail_df = retail_df.sort_values("规格排序")
+retail_sorted = retail_df.sort_values("规格排序")
 
 fig2 = px.bar(
-    retail_df, x="品种规格", y="均价(元/kg)",
+    retail_sorted, x="品种规格", y="均价(元/kg)",
     color="产地", barmode="group",
     text="均价(元/kg)",
     labels={"均价(元/kg)": "价格 (元/公斤)"}
 )
 fig2.update_traces(texttemplate='%{text:.1f}', textposition='outside')
-fig2.update_layout(xaxis_tickangle=-45, height=450)
+fig2.update_layout(xaxis_tickangle=-45, height=500)
 st.plotly_chart(fig2, use_container_width=True)
 
-# ========== 图3：自动性价比建议 ==========
+# ========== 图3：性价比建议 ==========
 st.markdown("### 💡 性价比建议")
 if not retail_df.empty:
     # 找同一规格下最便宜的渠道
