@@ -89,4 +89,4 @@ if not origin_summary_sorted.empty:
 
 # 数据明细表（可选）
 with st.expander("📋 查看各产区详细数据"):
-    st.dataframe(origin_summary_sorted, use_container_width=True)y, use_container_width=True)
+    st.dataframe(origin_summary_sorted, use_container_width=True)
