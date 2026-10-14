@@ -69,13 +69,13 @@ fig2 = px.scatter(
     labels={"均价": "价格 (元/公斤)", "产地": ""}
 )
 
-# 美化点和线（颜色调淡，透明度调低）
 fig2.update_traces(
-    marker=dict(size=16, line=dict(width=1.5, color='#95a5a6'), opacity=0.85), # 圆点带浅灰边框
-    error_x=dict(thickness=2.5, width=4, color='#bdc3c7'),                      # 价格区间线调成浅灰
+    marker=dict(size=16, line=dict(width=1.5, color='#95a5a6'), opacity=0.85),
+    error_x=dict(thickness=2.5, width=4, color='#bdc3c7'),
+    # 把数值挪到圆点右侧，并稍微调小一点
     texttemplate='%{text:.1f}',
-    textposition='top center',
-    textfont=dict(size=15, color='#2c3e50')
+    textposition='middle right',
+    textfont=dict(size=14, color='#7f8c8d')
 )
 
 fig2.update_layout(
