@@ -24,13 +24,14 @@ origin_summary = origin_df.groupby("产地").agg(
 
 origin_summary_sorted = origin_summary.sort_values("均价", ascending=True)
 
-# ========== 图1：各产区平均价格对比（彩色横向条） ==========
+# ========== 图1：各产区平均价格对比（柔和单色渐变） ==========
 st.subheader("各产区平均价格对比")
 
 fig1 = px.bar(
     origin_summary_sorted, x="均价", y="产地", orientation="h",
     text="均价", color="均价",
-    color_continuous_scale="Turbo", # 换成鲜艳的彩虹色系
+    # 换成低饱和度的“薄荷绿-浅蓝”过渡，非常护眼
+    color_continuous_scale="Tealgrn",
     labels={"均价": "平均价格 (元/公斤)", "产地": ""},
     hover_data={"样本数": True, "最高价": ":.1f", "最低价": ":.1f"}
 )
@@ -48,10 +49,10 @@ fig1.update_layout(
 )
 st.plotly_chart(fig1, use_container_width=True)
 
-# ========== 图2：各产区价格区间与均价（彩色区间点图） ==========
+# ========== 图2：各产区价格区间与均价（柔和区间点图） ==========
 st.subheader("各产区价格区间与均价分布")
 
-# 计算误差线（为了画出从最低价到最高价的水平线）
+# 计算误差线
 origin_summary_sorted["上限误差"] = origin_summary_sorted["最高价"] - origin_summary_sorted["均价"]
 origin_summary_sorted["下限误差"] = origin_summary_sorted["均价"] - origin_summary_sorted["最低价"]
 
@@ -59,28 +60,28 @@ fig2 = px.scatter(
     origin_summary_sorted,
     x="均价",
     y="产地",
-    color="均价",               # 用颜色映射价格
-    color_continuous_scale="Plasma", # 鲜艳的渐变色板（紫-红-黄）
-    error_x="上限误差",          # 向右画到最高价
-    error_x_minus="下限误差",    # 向左画到最低价
+    color="均价",
+    # 换成低饱和度的“日落/晚霞”色系，温柔不刺眼
+    color_continuous_scale="Sunset",
+    error_x="上限误差",
+    error_x_minus="下限误差",
     text="均价",
     labels={"均价": "价格 (元/公斤)", "产地": ""}
 )
 
-# 美化点和线
+# 美化点和线（颜色调淡，透明度调低）
 fig2.update_traces(
-    marker=dict(size=18, line=dict(width=2, color='#2c3e50')), # 大圆点，带深色边框
-    error_x=dict(thickness=3, width=6, color='#7f8c8d'),      # 加粗误差线（灰色）
+    marker=dict(size=16, line=dict(width=1.5, color='#95a5a6'), opacity=0.85), # 圆点带浅灰边框
+    error_x=dict(thickness=2.5, width=4, color='#bdc3c7'),                      # 价格区间线调成浅灰
     texttemplate='%{text:.1f}',
     textposition='top center',
-    textfont=dict(size=15, color='black')
+    textfont=dict(size=15, color='#2c3e50')
 )
 
-# 强制放大所有字体
 fig2.update_layout(
     height=800,
     font=dict(size=16),
-    coloraxis_showscale=False, # 隐藏颜色条，让画面更干净
+    coloraxis_showscale=False,
     xaxis=dict(tickfont=dict(size=15), title_font=dict(size=18), title="价格 (元/公斤)"),
     yaxis=dict(tickfont=dict(size=15), automargin=True),
     margin=dict(l=50, r=50, t=50, b=50)
@@ -90,8 +91,8 @@ st.plotly_chart(fig2, use_container_width=True)
 # ========== 图3：自动采购建议 ==========
 st.markdown("### 💡 采购建议")
 if not origin_summary_sorted.empty:
-    best = origin_summary_sorted.iloc[0]      # 均价最低的
-    worst = origin_summary_sorted.iloc[-1]    # 均价最高的
+    best = origin_summary_sorted.iloc[0]
+    worst = origin_summary_sorted.iloc[-1]
     gap = worst["均价"] - best["均价"]
     st.success(
         f"在您当前筛选的 **{len(origin_summary_sorted)}** 个产地中，"
