@@ -14,7 +14,7 @@ if origin_df.empty:
     st.info("暂无产地数据。")
     st.stop()
 
-# ========== 核心：计算各产地的数据汇总（图1和图2共用） ==========
+# ========== 核心：计算各产地的数据汇总 ==========
 origin_summary = origin_df.groupby("产地").agg(
     均价=("均价(元/kg)", "mean"),
     最高价=("均价(元/kg)", "max"),
@@ -22,10 +22,9 @@ origin_summary = origin_df.groupby("产地").agg(
     样本数=("均价(元/kg)", "count")
 ).reset_index().sort_values("均价", ascending=True)
 
-# 按均价排序后，给图1和图2共用
 origin_summary_sorted = origin_summary.sort_values("均价", ascending=True)
 
-# ========== 图1：各产区平均价格对比 ==========
+# ========== 图1：各产区平均价格对比（只保留这一个清晰的图表） ==========
 st.subheader("各产区平均价格对比")
 
 fig1 = px.bar(
@@ -35,64 +34,34 @@ fig1 = px.bar(
     labels={"均价": "平均价格 (元/公斤)", "产地": ""},
     hover_data={"样本数": True, "最高价": ":.1f", "最低价": ":.1f"}
 )
-fig1.update_traces(texttemplate='%{text:.1f}', textposition='outside')
-fig1.update_layout(showlegend=False, coloraxis_showscale=False, height=450)
+# 放大图1的字号
+fig1.update_traces(
+    texttemplate='%{text:.1f}',
+    textposition='outside',
+    textfont=dict(size=14)
+)
+fig1.update_layout(
+    showlegend=False,
+    coloraxis_showscale=False,
+    height=600,
+    font=dict(size=14),
+    margin=dict(l=150, r=50, t=30, b=50)
+)
 st.plotly_chart(fig1, use_container_width=True)
 
-# ========== 图2：各产区均价与价格区间对比 ==========
-st.subheader("各产区均价与价格区间对比")
-
-# 1. 数据融化
-melted_df = origin_summary_sorted.melt(
-    id_vars=["产地"],
-    value_vars=["均价", "最高价", "最低价"],
-    var_name="价格类型",
-    value_name="价格"
+# ========== 图2：各产区价格与样本量明细（用干净的数据表展示最高、最低和样本数） ==========
+st.subheader("各产区价格与样本量明细")
+st.dataframe(
+    origin_summary_sorted,
+    use_container_width=True,
+    column_config={
+        "产地": "产地",
+        "均价": st.column_config.NumberColumn("均价 (元/kg)", format="%.1f"),
+        "最高价": st.column_config.NumberColumn("最高价 (元/kg)", format="%.1f"),
+        "最低价": st.column_config.NumberColumn("最低价 (元/kg)", format="%.1f"),
+        "样本数": st.column_config.NumberColumn("样本数 (n)", format="%d"),
+    }
 )
-
-# 2. 画图
-fig2 = px.bar(
-    melted_df,
-    x="价格",
-    y="产地",
-    color="价格类型",
-    barmode="group",
-    orientation="h",
-    text="价格",
-    labels={"价格": "价格 (元/公斤)", "产地": "", "价格类型": "指标"}
-)
-
-
-# 👇 关键修改2：强制放大所有坐标轴、图例的字号，并拉长图表
-fig2.update_layout(
-    height=800, # 高度直接拉到800
-    font=dict(size=16), # 全局字体大小
-    margin=dict(l=150, r=50, t=50, b=50), # 左边留足空间给长产地名，防止被截断
-    xaxis=dict(tickfont=dict(size=14)), # X轴刻度字
-    yaxis=dict(tickfont=dict(size=14)), # Y轴产地名字
-    legend=dict(font=dict(size=16)) # 右上角图例字
-)
-st.plotly_chart(fig2, use_container_width=True)
-
-# 3. 画分组柱状图
-fig2 = px.bar(
-    melted_df,
-    x="价格",
-    y="产地",
-    color="价格类型",
-    barmode="group",  # 并排显示
-    orientation="h",
-    text="价格",
-    labels={"价格": "价格 (元/公斤)", "产地": "", "价格类型": "指标"}
-)
-fig2.update_traces(texttemplate='%{text:.1f}', textposition='outside')
-fig2.update_layout(
-    height=500,
-    xaxis_title="价格 (元/公斤)",
-    yaxis_title="",
-    legend_title=""
-)
-st.plotly_chart(fig2, use_container_width=True)
 
 # ========== 图3：自动采购建议 ==========
 st.markdown("### 💡 采购建议")
@@ -108,6 +77,6 @@ if not origin_summary_sorted.empty:
         f"如果追求性价比，优先考虑 {best['产地']}；如果追求品质，可参考 {worst['产地']}。"
     )
 
-# 数据明细表（可选）
-with st.expander("📋 查看各产区详细数据"):
+# 数据明细表（可选折叠）
+with st.expander("📋 查看完整原始数据"):
     st.dataframe(origin_summary_sorted, use_container_width=True)
