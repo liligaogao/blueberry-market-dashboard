@@ -24,17 +24,16 @@ origin_summary = origin_df.groupby("产地").agg(
 
 origin_summary_sorted = origin_summary.sort_values("均价", ascending=True)
 
-# ========== 图1：各产区平均价格对比（只保留这一个清晰的图表） ==========
+# ========== 图1：各产区平均价格对比（彩色横向条） ==========
 st.subheader("各产区平均价格对比")
 
 fig1 = px.bar(
     origin_summary_sorted, x="均价", y="产地", orientation="h",
     text="均价", color="均价",
-    color_continuous_scale="Blues",
+    color_continuous_scale="Turbo", # 换成鲜艳的彩虹色系
     labels={"均价": "平均价格 (元/公斤)", "产地": ""},
     hover_data={"样本数": True, "最高价": ":.1f", "最低价": ":.1f"}
 )
-# 放大图1的字号
 fig1.update_traces(
     texttemplate='%{text:.1f}',
     textposition='outside',
@@ -49,52 +48,43 @@ fig1.update_layout(
 )
 st.plotly_chart(fig1, use_container_width=True)
 
-# ========== 图2：各产区价格区间与均价（高级区间点图） ==========
-st.subheader("各产区价格区间与均价")
+# ========== 图2：各产区价格区间与均价（彩色区间点图） ==========
+st.subheader("各产区价格区间与均价分布")
 
-# 使用 Plotly 的散点图来画区间和均值
-import plotly.graph_objects as go
+# 计算误差线（为了画出从最低价到最高价的水平线）
+origin_summary_sorted["上限误差"] = origin_summary_sorted["最高价"] - origin_summary_sorted["均价"]
+origin_summary_sorted["下限误差"] = origin_summary_sorted["均价"] - origin_summary_sorted["最低价"]
 
-fig2 = go.Figure()
-
-# 1. 绘制价格区间（浅蓝色细线）
-for i, row in origin_summary_sorted.iterrows():
-    fig2.add_trace(go.Scatter(
-        x=[row["最低价"], row["最高价"]],
-        y=[row["产地"], row["产地"]],
-        mode="lines",
-        line=dict(color="lightblue", width=4),
-        showlegend=False,
-        hoverinfo="skip"
-    ))
-
-# 2. 绘制均价（深蓝色圆点）
-fig2.add_trace(go.Scatter(
-    x=origin_summary_sorted["均价"],
-    y=origin_summary_sorted["产地"],
-    mode="markers",
-    marker=dict(color="#1f77b4", size=12),
-    name="均价",
-    hovertemplate="产地: %{y}<br>均价: %{x:.1f} 元/公斤<extra></extra>"
-))
-
-# 3. 强制放大所有字体，并拉高图表
-fig2.update_layout(
-    height=800,  # 高度拉高
-    font=dict(size=18),  # 全局字体放大到18
-    xaxis=dict(
-        title="价格 (元/公斤)",
-        tickfont=dict(size=16),
-        title_font=dict(size=18)
-    ),
-    yaxis=dict(
-        tickfont=dict(size=16),
-        automargin=True  # 自动留出左侧空间，防止产地名称被截断
-    ),
-    legend=dict(font=dict(size=16)),
-    margin=dict(l=50, r=50, t=30, b=50)
+fig2 = px.scatter(
+    origin_summary_sorted,
+    x="均价",
+    y="产地",
+    color="均价",               # 用颜色映射价格
+    color_continuous_scale="Plasma", # 鲜艳的渐变色板（紫-红-黄）
+    error_x="上限误差",          # 向右画到最高价
+    error_x_minus="下限误差",    # 向左画到最低价
+    text="均价",
+    labels={"均价": "价格 (元/公斤)", "产地": ""}
 )
 
+# 美化点和线
+fig2.update_traces(
+    marker=dict(size=18, line=dict(width=2, color='#2c3e50')), # 大圆点，带深色边框
+    error_x=dict(thickness=3, width=6, color='#7f8c8d'),      # 加粗误差线（灰色）
+    texttemplate='%{text:.1f}',
+    textposition='top center',
+    textfont=dict(size=15, color='black')
+)
+
+# 强制放大所有字体
+fig2.update_layout(
+    height=800,
+    font=dict(size=16),
+    coloraxis_showscale=False, # 隐藏颜色条，让画面更干净
+    xaxis=dict(tickfont=dict(size=15), title_font=dict(size=18), title="价格 (元/公斤)"),
+    yaxis=dict(tickfont=dict(size=15), automargin=True),
+    margin=dict(l=50, r=50, t=50, b=50)
+)
 st.plotly_chart(fig2, use_container_width=True)
 
 # ========== 图3：自动采购建议 ==========
@@ -110,7 +100,3 @@ if not origin_summary_sorted.empty:
         f"两者价差 **{gap:.1f} 元/公斤**。"
         f"如果追求性价比，优先考虑 {best['产地']}；如果追求品质，可参考 {worst['产地']}。"
     )
-
-# 数据明细表（可选折叠）
-with st.expander("📋 查看完整原始数据"):
-    st.dataframe(origin_summary_sorted, use_container_width=True)
