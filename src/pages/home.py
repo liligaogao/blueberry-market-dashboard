@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 
 st.title("📊 首页大盘概览")
@@ -9,16 +10,35 @@ if filtered_df is None or filtered_df.empty:
     st.warning("当前筛选条件下暂无数据。")
     st.stop()
 
-# 核心指标卡片
+# ------------------ 核心指标卡片 ------------------
+st.markdown("### 📈 关键指标")
 col1, col2, col3 = st.columns(3)
+
 with col1:
     st.metric("数据条数", len(filtered_df))
+
 with col2:
-    avg_price = filtered_df["均价(元/kg)"].mean()
-    st.metric("平均价格 (元/kg)", f"{avg_price:.2f}" if avg_price == avg_price else "N/A")
+    # 筛选出“全国”的数据，并按日期排序
+    national_data = filtered_df[filtered_df["产地"] == "全国"].sort_values("日期")
+
+    if not national_data.empty:
+        # 取最新一天的全国均价
+        latest_national = national_data.iloc[-1]
+        latest_date_str = latest_national["日期"].strftime("%Y-%m-%d")
+        latest_price = latest_national["均价(元/kg)"]
+        st.metric(f"最新全国均价 ({latest_date_str})", f"{latest_price:.2f} 元/kg")
+    else:
+        # 如果没有“全国”数据，才退回到平均值（但改用中位数更抗干扰）
+        median_price = filtered_df["均价(元/kg)"].median()
+        st.metric("价格中位数 (元/kg)", f"{median_price:.2f}")
+
 with col3:
     max_price = filtered_df["均价(元/kg)"].max()
-    st.metric("最高价格 (元/kg)", f"{max_price:.2f}" if max_price == max_price else "N/A")
+    # 如果 max_price 不是空值，就显示，否则显示 N/A
+    if max_price == max_price:  # NaN 不等于它自己，所以这行相当于判断非空
+        st.metric("最高价格 (元/kg)", f"{max_price:.2f}")
+    else:
+        st.metric("最高价格 (元/kg)", "N/A")
 
 # 自动洞察
 st.markdown("### 🧠 今日洞察")
