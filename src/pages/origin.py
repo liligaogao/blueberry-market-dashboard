@@ -49,19 +49,53 @@ fig1.update_layout(
 )
 st.plotly_chart(fig1, use_container_width=True)
 
-# ========== 图2：各产区价格与样本量明细（用干净的数据表展示最高、最低和样本数） ==========
-st.subheader("各产区价格与样本量明细")
-st.dataframe(
-    origin_summary_sorted,
-    use_container_width=True,
-    column_config={
-        "产地": "产地",
-        "均价": st.column_config.NumberColumn("均价 (元/kg)", format="%.1f"),
-        "最高价": st.column_config.NumberColumn("最高价 (元/kg)", format="%.1f"),
-        "最低价": st.column_config.NumberColumn("最低价 (元/kg)", format="%.1f"),
-        "样本数": st.column_config.NumberColumn("样本数 (n)", format="%d"),
-    }
+# ========== 图2：各产区价格区间与均价（高级区间点图） ==========
+st.subheader("各产区价格区间与均价")
+
+# 使用 Plotly 的散点图来画区间和均值
+import plotly.graph_objects as go
+
+fig2 = go.Figure()
+
+# 1. 绘制价格区间（浅蓝色细线）
+for i, row in origin_summary_sorted.iterrows():
+    fig2.add_trace(go.Scatter(
+        x=[row["最低价"], row["最高价"]],
+        y=[row["产地"], row["产地"]],
+        mode="lines",
+        line=dict(color="lightblue", width=4),
+        showlegend=False,
+        hoverinfo="skip"
+    ))
+
+# 2. 绘制均价（深蓝色圆点）
+fig2.add_trace(go.Scatter(
+    x=origin_summary_sorted["均价"],
+    y=origin_summary_sorted["产地"],
+    mode="markers",
+    marker=dict(color="#1f77b4", size=12),
+    name="均价",
+    hovertemplate="产地: %{y}<br>均价: %{x:.1f} 元/公斤<extra></extra>"
+))
+
+# 3. 强制放大所有字体，并拉高图表
+fig2.update_layout(
+    height=800,  # 高度拉高
+    font=dict(size=18),  # 全局字体放大到18
+    xaxis=dict(
+        title="价格 (元/公斤)",
+        tickfont=dict(size=16),
+        title_font=dict(size=18)
+    ),
+    yaxis=dict(
+        tickfont=dict(size=16),
+        automargin=True  # 自动留出左侧空间，防止产地名称被截断
+    ),
+    legend=dict(font=dict(size=16)),
+    margin=dict(l=50, r=50, t=30, b=50)
 )
+
+st.plotly_chart(fig2, use_container_width=True)
 
 # ========== 图3：自动采购建议 ==========
 st.markdown("### 💡 采购建议")
