@@ -1,6 +1,8 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from utils import load_data, sidebar_filter
+from streamlit_fyr import SQLiteBackend, Tracker
+from streamlit_fyr.dashboard import make_dashboard_page
 
 # 页面配置（必须是第一个 Streamlit 命令）
 st.set_page_config(page_title="蓝莓市场行情看板", layout="wide", page_icon="🫐")
@@ -8,10 +10,17 @@ st.set_page_config(page_title="蓝莓市场行情看板", layout="wide", page_ic
 # 每 60 秒自动刷新
 st_autorefresh(interval=60 * 1000, key="data_refresh")
 
-# ===== 新增：展示蓝莓 Logo =====
-# st.image("src/assets/blueberry_logo.png", width=150)
+# ========== 初始化访问追踪 ==========
+@st.cache_resource
+def get_tracker():
+    backend = SQLiteBackend("data/telemetry.db")
+    tracker = Tracker(app_name="blueberry-dashboard", backend=backend)
+    tracker.init()
+    return tracker
 
-st.title("🫐 蓝莓市场行情动态看板")
+tracker = get_tracker()
+# 记录本次页面访问
+tracker.page("首页大盘")
 
 # 加载数据
 df = load_data()
@@ -26,12 +35,18 @@ filtered_df = sidebar_filter(df)
 st.session_state["df"] = df
 st.session_state["filtered_df"] = filtered_df
 
-# 定义多页面导航
+# 定义多页面导航（新增"访问统计"页面）
 pages = [
     st.Page("pages/home.py",   title="首页大盘",  icon="📊", default=True),
     st.Page("pages/origin.py", title="产区分析",  icon="📍"),
     st.Page("pages/retail.py", title="零售市场",  icon="🛒"),
     st.Page("pages/data.py",   title="数据下载",  icon="📥"),
+    # 访问统计页面
+    st.Page(
+        make_dashboard_page(get_tracker().backend),
+        title="访问统计",
+        icon="📈",
+    ),
 ]
 
 pg = st.navigation(pages)
@@ -39,4 +54,7 @@ pg.run()
 
 # 页脚（所有页面共享）
 st.sidebar.markdown("---")
-st.sidebar.caption("数据来源：农业农村部、北京新发地市场、惠农网及公开行业报告与新闻资讯 | 数据仅供学习交流，不构成投资或商业建议。")
+st.sidebar.caption(
+    "数据来源：农业农村部、北京新发地市场及公开农产品信息平台 | "
+    "数据仅供学习交流，不构成投资或商业建议。"
+)

@@ -5,3 +5,4 @@ streamlit-autorefresh
 openpyxl
 xlsxwriter
 statsmodels
+streamlit-fyr
