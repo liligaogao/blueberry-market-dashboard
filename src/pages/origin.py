@@ -39,10 +39,10 @@ fig1.update_traces(texttemplate='%{text:.1f}', textposition='outside')
 fig1.update_layout(showlegend=False, coloraxis_showscale=False, height=450)
 st.plotly_chart(fig1, use_container_width=True)
 
-# ========== 图2：各产区均价与价格区间对比（分组柱状图） ==========
+# ========== 图2：各产区均价与价格区间对比 ==========
 st.subheader("各产区均价与价格区间对比")
 
-# 1. 把数据“融化”成长表，方便分组画图
+# 1. 数据融化
 melted_df = origin_summary_sorted.melt(
     id_vars=["产地"],
     value_vars=["均价", "最高价", "最低价"],
@@ -50,7 +50,7 @@ melted_df = origin_summary_sorted.melt(
     value_name="价格"
 )
 
-# 2. 画分组柱状图
+# 2. 画图
 fig2 = px.bar(
     melted_df,
     x="价格",
@@ -62,13 +62,17 @@ fig2 = px.bar(
     labels={"价格": "价格 (元/公斤)", "产地": "", "价格类型": "指标"}
 )
 
-# 👇 修改1：增大柱状图上数字标签的字号，并让数字显示更清晰
-fig2.update_traces(
-    texttemplate='%{text:.1f}',
-    textposition='outside',
-    textfont=dict(size=14)  # 字号从默认的 12 调大到 14
-)
 
+# 👇 关键修改2：强制放大所有坐标轴、图例的字号，并拉长图表
+fig2.update_layout(
+    height=800, # 高度直接拉到800
+    font=dict(size=16), # 全局字体大小
+    margin=dict(l=150, r=50, t=50, b=50), # 左边留足空间给长产地名，防止被截断
+    xaxis=dict(tickfont=dict(size=14)), # X轴刻度字
+    yaxis=dict(tickfont=dict(size=14)), # Y轴产地名字
+    legend=dict(font=dict(size=16)) # 右上角图例字
+)
+st.plotly_chart(fig2, use_container_width=True)
 
 # 3. 画分组柱状图
 fig2 = px.bar(
