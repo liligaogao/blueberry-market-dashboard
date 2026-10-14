@@ -42,16 +42,17 @@ st.plotly_chart(fig1, use_container_width=True)
 # ========== 图2：各产区均价与价格区间对比（分组柱状图） ==========
 st.subheader("各产区均价与价格区间对比")
 
-# 1. 把数据“融化”成长表，方便分组画图
+# 1. 准备数据：在 melt 之前，先填补缺失的最高/最低价
+origin_summary_sorted["最高价"] = origin_summary_sorted["最高价"].fillna(origin_summary_sorted["均价"])
+origin_summary_sorted["最低价"] = origin_summary_sorted["最低价"].fillna(origin_summary_sorted["均价"])
+
+# 2. 然后再进行 melt
 melted_df = origin_summary_sorted.melt(
     id_vars=["产地"],
     value_vars=["均价", "最高价", "最低价"],
     var_name="价格类型",
     value_name="价格"
 )
-
-# 2. 处理空值：避免图空缺
-melted_df["价格"] = melted_df["价格"].fillna(melted_df["均价"])
 
 # 3. 画分组柱状图
 fig2 = px.bar(
