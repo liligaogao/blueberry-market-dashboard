@@ -4,3 +4,4 @@ plotly
 streamlit-autorefresh
 openpyxl
 xlsxwriter
+statsmodels
