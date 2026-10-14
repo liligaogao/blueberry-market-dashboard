@@ -4,7 +4,6 @@ from pathlib import Path
 
 @st.cache_data(ttl=60)
 def load_data():
-    """加载清洗后的数据"""
     BASE_DIR = Path(__file__).resolve().parent.parent
     csv_path = BASE_DIR / "data" / "processed" / "blueberry_prices_clean.csv"
     if not csv_path.exists():
@@ -32,11 +31,14 @@ def sidebar_filter(df):
         key="date_filter"
     )
 
-    # 防止用户只点了一个日期导致解包失败
     if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
         start_date, end_date = date_range
     else:
         start_date, end_date = min_date, max_date
+
+    # ===== 关键：把日期范围存到 session_state，供各子页面使用 =====
+    st.session_state["start_date"] = start_date
+    st.session_state["end_date"] = end_date
 
     filtered_df = df[
         (df["产地"].isin(selected_origins)) &

@@ -4,6 +4,9 @@ import pandas as pd
 import re
 
 st.title("🛒 零售市场")
+start_date = st.session_state.get("start_date")
+end_date = st.session_state.get("end_date")
+st.caption(f"📅 当前数据时间范围：**{start_date}** 至 **{end_date}**")
 
 filtered_df = st.session_state.get("filtered_df")
 if filtered_df is None or filtered_df.empty:
@@ -36,7 +39,7 @@ if not retail_analysis.empty:
         retail_analysis,
         x="果径", y="均价(元/kg)",
         color="产地", size="均价(元/kg)",
-        hover_data=["品种规格"],
+        hover_data=["品种规格", "日期"],  # <-- 增加日期
         labels={"果径": "果径 (mm)", "均价(元/kg)": "价格 (元/公斤)"},
         trendline="ols"
     )
