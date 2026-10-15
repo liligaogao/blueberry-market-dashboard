@@ -19,10 +19,16 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(t("data_count"), len(filtered_df))
 with col2:
-    national_data = filtered_df[filtered_df["产地"] == "全国"].sort_values("日期")
+    national_data = filtered_df[
+        (filtered_df["产地"] == "全国") &
+        (filtered_df["品种规格"].isin(["批发均价", "蓝莓"]))
+    ].sort_values("日期")
     if not national_data.empty:
         latest = national_data.iloc[-1]
-        st.metric(f"{t('latest_price')} ({latest['日期'].strftime('%Y-%m-%d')})", f"{latest['均价(元/kg)']:.2f} {t('yuan_per_kg')}")
+        st.metric(
+            f"{t('latest_price')} ({latest['日期'].strftime('%Y-%m-%d')})",
+            f"{latest['均价(元/kg)']:.2f} {t('yuan_per_kg')}"
+        )
     else:
         st.metric(t("avg_price_col"), f"{filtered_df['均价(元/kg)'].median():.2f}")
 with col3:
