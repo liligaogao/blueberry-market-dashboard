@@ -2,81 +2,66 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import re
+from utils import t, get_lang
 
-st.title("🛒 零售市场")
+st.title(t("retail_title"))
 start_date = st.session_state.get("start_date")
 end_date = st.session_state.get("end_date")
-st.caption(f"📅 当前数据时间范围：**{start_date}** 至 **{end_date}**")
+st.caption(f"{t('date_range_label')}: **{start_date}** ~ **{end_date}**")
 
 filtered_df = st.session_state.get("filtered_df")
 if filtered_df is None or filtered_df.empty:
-    st.warning("当前筛选条件下暂无数据。")
+    st.warning(t("no_data"))
     st.stop()
 
-# 将你需要展示的所有零售渠道都加进来
 retail_channels = ["济南大润发", "盒马鲜生", "上海市场", "北京新发地", "济南超市", "深圳盒马", "济南堤口", "全国超市"]
 retail_df = filtered_df[filtered_df["产地"].isin(retail_channels)].copy()
 if retail_df.empty:
-    st.info("暂无零售端数据。")
+    st.info(t("no_data"))
     st.stop()
 
-# ========== 关键优化：提取纯规格名称 ==========
-# 比如把 "云南高山蓝莓14mm" 变成 "14mm"
 def extract_spec(spec):
     match = re.search(r'(\d+mm\+?)', str(spec))
     return match.group(1) if match else spec
 
 retail_df["规格简化"] = retail_df["品种规格"].apply(extract_spec)
-
-# 提取果径用于散点图
 retail_df["果径"] = retail_df["品种规格"].str.extract(r'(\d+)mm').astype(float)
 retail_analysis = retail_df.dropna(subset=["果径", "均价(元/kg)"])
 
-# ========== 图1：果径 vs 价格 ==========
-st.subheader("果径大小 vs 零售价格")
+# 图1
+st.subheader(t("diameter_vs_price"))
 if not retail_analysis.empty:
     fig_scatter = px.scatter(
-        retail_analysis,
-        x="果径", y="均价(元/kg)",
+        retail_analysis, x="果径", y="均价(元/kg)",
         color="产地", size="均价(元/kg)",
-        hover_data=["品种规格", "日期"],  # <-- 增加日期
-        labels={"果径": "果径 (mm)", "均价(元/kg)": "价格 (元/公斤)"},
+        hover_data=["品种规格", "日期"],
+        labels={"果径": "Size (mm)" if get_lang() == "en" else "果径 (mm)", "均价(元/kg)": t("avg_price_col")},
         trendline="ols"
     )
     fig_scatter.update_layout(height=500, font=dict(size=14))
     st.plotly_chart(fig_scatter, use_container_width=True)
 else:
-    st.info("暂无包含果径规格的数据。")
+    st.info(t("no_data"))
 
-# ========== 图2：各渠道同规格价格对比 ==========
-st.subheader("各渠道同规格价格对比")
-# 按简化后的规格排序
+# 图2
+st.subheader(t("channel_compare"))
 retail_df = retail_df.sort_values("规格简化")
 
 fig2 = px.bar(
     retail_df, x="规格简化", y="均价(元/kg)",
     color="产地", barmode="group",
     text="均价(元/kg)",
-    labels={"均价(元/kg)": "价格 (元/公斤)", "规格简化": "规格"}
+    labels={"均价(元/kg)": t("avg_price_col"), "规格简化": t("spec"), "产地": t("origin_label")}
 )
 fig2.update_traces(texttemplate='%{text:.1f}', textposition='outside', textfont=dict(size=11))
-fig2.update_layout(
-    xaxis_tickangle=-45, # 倾斜45度
-    height=600,          # 拉高图表
-    font=dict(size=14),
-    margin=dict(l=50, r=50, t=50, b=50)
-)
+fig2.update_layout(xaxis_tickangle=-45, height=600, font=dict(size=14))
 st.plotly_chart(fig2, use_container_width=True)
 
-# ========== 图3：性价比建议 ==========
-st.markdown("### 💡 性价比建议")
+# 图3
+st.markdown(f"### {t('value_advice')}")
 if not retail_df.empty:
-    best_value = retail_df.loc[retail_df.groupby("规格简化")["均价(元/kg)"].idxmin()]
-    best_value = best_value.sort_values("规格简化")
-    st.info(
-        "以下是各规格下价格最低的渠道（性价比最高）：\n\n"
-        + "\n".join([
-            f"- **{row['规格简化']}**：{row['产地']}（{row['均价(元/kg)']:.1f} 元/公斤）"
-            for _, row in best_value.iterrows()
-        ])
-    )
+    best_value = retail_df.loc[retail_df.groupby("规格简化")["均价(元/kg)"].idxmin()].sort_values("规格简化")
+    st.info("\n".join([
+        f"- **{row['规格简化']}**: {row['产地']} ({row['均价(元/kg)']:.1f} {t('yuan_per_kg')})"
+        for _, row in best_value.iterrows()
+    ]))
