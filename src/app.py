@@ -23,12 +23,15 @@ st.session_state["filtered_df"] = filtered_df
 
 # 定义多页面导航
 pages = [
-    st.Page("pages/home.py",   title="首页大盘",  icon="📊", default=True),
-    st.Page("pages/origin.py", title="产区分析",  icon="📍"),
-    st.Page("pages/retail.py", title="零售市场",  icon="🛒"),
-    st.Page("pages/industry.py", title="行业格局", icon="🏢"),
-    st.Page("pages/data.py",   title="数据下载",  icon="📥"),
+    st.Page("pages/home.py",     title="首页大盘",  icon="📊", default=True),
+    st.Page("pages/origin.py",   title="产区分析",  icon="📍"),
+    st.Page("pages/retail.py",   title="零售市场",  icon="🛒"),
+    st.Page("pages/data.py",     title="数据下载",  icon="📥"),
+    st.Page("pages/industry.py", title="行业格局",  icon="🏢"),   # <--- 加上这行！
 ]
+
+pg = st.navigation(pages)
+pg.run()
 
 pg = st.navigation(pages)
 pg.run()
