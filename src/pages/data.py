@@ -25,3 +25,21 @@ preview_df = filtered_df.copy()
 preview_df["日期"] = preview_df["日期"].dt.strftime("%Y-%m-%d")  # 去掉 00:00:00
 preview_df = preview_df.fillna("")  # 将 None 替换为空字符串，表格更美观
 st.dataframe(preview_df, use_container_width=True, height=500)
+
+import io
+
+# ... 现有代码 ...
+
+# ===== 新增：导出为 Excel 按钮 =====
+st.markdown("### 📊 导出为 Excel")
+if st.button("生成 Excel 报表"):
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+        preview_df.to_excel(writer, sheet_name="蓝莓行情", index=False)
+    buffer.seek(0)
+    st.download_button(
+        label="📥 点击下载 Excel",
+        data=buffer,
+        file_name=f"蓝莓行情_{pd.Timestamp.today().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
