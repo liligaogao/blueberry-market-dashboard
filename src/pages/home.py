@@ -34,7 +34,6 @@ with col2:
         st.metric(t("avg_price_col"), f"{filtered_df['均价(元/kg)'].median():.2f}")
 
 with col3:
-    # 今年最高价（动态取最新年份）
     latest_year = filtered_df["日期"].max().year
     this_year_df = filtered_df[filtered_df["日期"].dt.year == latest_year]
     if not this_year_df.empty:
@@ -71,25 +70,54 @@ if not week_origin.empty:
             f"{highest['产地']} · {highest['品种规格']}"
         )
 
+    # ========== 新增：近7天产地报价对比图 ==========
+    week_origin_sorted = week_origin.sort_values("均价(元/kg)", ascending=True).copy()
+    week_origin_sorted["标签"] = week_origin_sorted["产地"] + " · " + week_origin_sorted["品种规格"]
+
+    fig_week = px.bar(
+        week_origin_sorted,
+        x="均价(元/kg)",
+        y="标签",
+        orientation="h",
+        text="均价(元/kg)",
+        color="均价(元/kg)",
+        color_continuous_scale="Tealgrn",
+        labels={"均价(元/kg)": "Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)", "标签": ""},
+    )
+    fig_week.update_traces(
+        texttemplate='%{text:.1f}',
+        textposition='outside',
+        textfont=dict(size=12)
+    )
+    fig_week.update_layout(
+        showlegend=False,
+        coloraxis_showscale=False,
+        height=max(350, len(week_origin_sorted) * 28),
+        margin=dict(l=200, r=60, t=20, b=40),
+        font=dict(size=12),
+        yaxis_title="",
+        xaxis_title="Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)"
+    )
+    st.plotly_chart(fig_week, use_container_width=True)
+
+    # 底部统计说明
     price_range = week_origin["均价(元/kg)"].max() - week_origin["均价(元/kg)"].min()
     origins_count = week_origin["产地"].nunique()
 
     if lang == "zh":
-        st.markdown(
-            f"- 📅 近7天（{week_start.strftime('%m-%d')} 至 {latest_date.strftime('%m-%d')}）"
-            f"共收录 **{len(week_df)}** 条数据\n"
-            f"- 📍 覆盖 **{origins_count}** 个产地/渠道\n"
-            f"- 📊 价格区间跨度：**{price_range:.1f} {t('yuan_per_kg')}**"
+        st.caption(
+            f"📅 近7天（{week_start.strftime('%m-%d')} 至 {latest_date.strftime('%m-%d')}）"
+            f"共收录 **{len(week_df)}** 条数据，覆盖 **{origins_count}** 个产地/渠道，"
+            f"价格区间跨度 **{price_range:.1f} {t('yuan_per_kg')}**。"
+            f"💡 以上数据仅为客观统计，不构成任何采购或投资建议。"
         )
-        st.caption("💡 以上数据仅为客观统计，不构成任何采购或投资建议。")
     else:
-        st.markdown(
-            f"- 📅 Last 7 days ({week_start.strftime('%m-%d')} to {latest_date.strftime('%m-%d')}): "
-            f"**{len(week_df)}** records\n"
-            f"- 📍 Covers **{origins_count}** origins/channels\n"
-            f"- 📊 Price range: **{price_range:.1f} {t('yuan_per_kg')}**"
+        st.caption(
+            f"📅 Last 7 days ({week_start.strftime('%m-%d')} to {latest_date.strftime('%m-%d')}): "
+            f"**{len(week_df)}** records, **{origins_count}** origins, "
+            f"price range **{price_range:.1f} {t('yuan_per_kg')}**. "
+            f"💡 For reference only. Not investment advice."
         )
-        st.caption("💡 For reference only. Not investment advice.")
 else:
     st.info("近7天暂无产地报价数据。" if lang == "zh" else "No origin data in the last 7 days.")
 
