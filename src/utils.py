@@ -12,15 +12,26 @@ def load_data():
     return df
 
 def sidebar_filter(df):
-    """在侧边栏构建筛选器，返回筛选后的数据"""
     st.sidebar.header("🔍 数据筛选")
 
+    # 1. 渠道类型筛选
+    if "渠道类型" in df.columns:
+        all_channels = sorted(df["渠道类型"].dropna().unique().tolist())
+        selected_channels = st.sidebar.multiselect(
+            "渠道类型", options=all_channels, default=all_channels,
+            key="channel_filter"
+        )
+    else:
+        selected_channels = None
+
+    # 2. 产地筛选
     all_origins = df["产地"].unique().tolist()
     selected_origins = st.sidebar.multiselect(
         "选择产地", options=all_origins, default=all_origins,
         key="origin_filter"
     )
 
+    # 3. 日期范围
     min_date = df["日期"].min().date()
     max_date = df["日期"].max().date()
     date_range = st.sidebar.date_input(
@@ -36,14 +47,16 @@ def sidebar_filter(df):
     else:
         start_date, end_date = min_date, max_date
 
-    # ===== 关键：把日期范围存到 session_state，供各子页面使用 =====
     st.session_state["start_date"] = start_date
     st.session_state["end_date"] = end_date
 
-    filtered_df = df[
-        (df["产地"].isin(selected_origins)) &
-        (df["日期"].dt.date >= start_date) &
-        (df["日期"].dt.date <= end_date)
-    ].copy()
+    # 4. 应用筛选
+    mask = (df["产地"].isin(selected_origins)) & \
+           (df["日期"].dt.date >= start_date) & \
+           (df["日期"].dt.date <= end_date)
 
+    if selected_channels is not None:
+        mask = mask & (df["渠道类型"].isin(selected_channels))
+
+    filtered_df = df[mask].copy()
     return filtered_df
