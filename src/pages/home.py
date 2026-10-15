@@ -56,6 +56,54 @@ if not filtered_df.empty:
         direction = t("down") if change < 0 else t("up")
         st.warning(f"{first_p:.1f} → {last_p:.1f} {t('yuan_per_kg')}, {t('cumulative')} {direction} {abs(change):.1f}%")
 
+# ========== 本周数据观察 ==========
+st.markdown("### 📌 " + ("本周数据观察" if lang == "zh" else "Weekly Data Snapshot"))
+
+latest_date = filtered_df["日期"].max()
+week_start = latest_date - pd.Timedelta(days=7)
+week_df = filtered_df[filtered_df["日期"] >= week_start].copy()
+week_origin = week_df[week_df["产地"] != "全国"].copy()
+
+if not week_origin.empty:
+    lowest = week_origin.loc[week_origin["均价(元/kg)"].idxmin()]
+    highest = week_origin.loc[week_origin["均价(元/kg)"].idxmax()]
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.metric(
+            "本周最低报价" if lang == "zh" else "Lowest This Week",
+            f"{lowest['均价(元/kg)']:.1f} {t('yuan_per_kg')}",
+            f"{lowest['产地']} · {lowest['品种规格']}"
+        )
+    with col_b:
+        st.metric(
+            "本周最高报价" if lang == "zh" else "Highest This Week",
+            f"{highest['均价(元/kg)']:.1f} {t('yuan_per_kg')}",
+            f"{highest['产地']} · {highest['品种规格']}"
+        )
+
+    price_range = week_origin["均价(元/kg)"].max() - week_origin["均价(元/kg)"].min()
+    origins_count = week_origin["产地"].nunique()
+
+    if lang == "zh":
+        st.markdown(
+            f"- 📅 本周（{week_start.strftime('%m-%d')} 至 {latest_date.strftime('%m-%d')}）"
+            f"共收录 **{len(week_df)}** 条数据\n"
+            f"- 📍 覆盖 **{origins_count}** 个产地/渠道\n"
+            f"- 📊 本周产地价格区间跨度：**{price_range:.1f} {t('yuan_per_kg')}**"
+        )
+        st.caption("💡 以上数据仅为客观统计，不构成任何采购或投资建议。")
+    else:
+        st.markdown(
+            f"- 📅 This week ({week_start.strftime('%m-%d')} to {latest_date.strftime('%m-%d')}): "
+            f"**{len(week_df)}** records\n"
+            f"- 📍 Covers **{origins_count}** origins/channels\n"
+            f"- 📊 Price range this week: **{price_range:.1f} {t('yuan_per_kg')}**"
+        )
+        st.caption("💡 The above data is for reference only and does not constitute any purchasing or investment advice.")
+else:
+    st.info("本周暂无产地报价数据。" if lang == "zh" else "No origin price data this week.")
+
 # 全国均价走势
 st.markdown(f"### {t('national_trend_title')}")
 national_trend = filtered_df[filtered_df["产地"] == "全国"].sort_values("日期")
