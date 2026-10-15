@@ -12,12 +12,13 @@ if filtered_df is None or filtered_df.empty:
 
 lang = get_lang()
 
-# 关键指标
+# ========== 关键指标 ==========
 st.markdown(f"### {t('key_metrics')}")
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric(t("data_count"), len(filtered_df))
+
 with col2:
     national_data = filtered_df[
         (filtered_df["产地"] == "全国") &
@@ -31,33 +32,21 @@ with col2:
         )
     else:
         st.metric(t("avg_price_col"), f"{filtered_df['均价(元/kg)'].median():.2f}")
+
 with col3:
-    max_price = filtered_df["均价(元/kg)"].max()
-    st.metric(t("max_price"), f"{max_price:.2f}" if pd.notna(max_price) else "N/A")
+    # 今年最高价（动态取最新年份）
+    latest_year = filtered_df["日期"].max().year
+    this_year_df = filtered_df[filtered_df["日期"].dt.year == latest_year]
+    if not this_year_df.empty:
+        max_price_this_year = this_year_df["均价(元/kg)"].max()
+        label = f"{latest_year}年最高价" if lang == "zh" else f"{latest_year} Max Price"
+        st.metric(label, f"{max_price_this_year:.2f}" if pd.notna(max_price_this_year) else "N/A")
+    else:
+        st.metric(t("max_price"), "N/A")
 
-# 今日洞察
-st.markdown(f"### {t('today_insight')}")
-if not filtered_df.empty:
-    origin_only = filtered_df[filtered_df["产地"] != "全国"]
-    if not origin_only.empty:
-        max_row = origin_only.loc[origin_only["均价(元/kg)"].idxmax()]
-        min_row = origin_only.loc[origin_only["均价(元/kg)"].idxmin()]
-        gap = max_row["均价(元/kg)"] - min_row["均价(元/kg)"]
-        st.info(
-            f"{t('highest')}: **{max_row['产地']}** ({max_row['均价(元/kg)']:.1f} {t('yuan_per_kg')}) | "
-            f"{t('lowest')}: **{min_row['产地']}** ({min_row['均价(元/kg)']:.1f} {t('yuan_per_kg')}) | "
-            f"{t('price_gap')}: **{gap:.1f} {t('yuan_per_kg')}**"
-        )
-    national_trend = filtered_df[filtered_df["产地"] == "全国"].sort_values("日期")
-    if len(national_trend) >= 2:
-        first_p = national_trend.iloc[0]["均价(元/kg)"]
-        last_p = national_trend.iloc[-1]["均价(元/kg)"]
-        change = (last_p - first_p) / first_p * 100
-        direction = t("down") if change < 0 else t("up")
-        st.warning(f"{first_p:.1f} → {last_p:.1f} {t('yuan_per_kg')}, {t('cumulative')} {direction} {abs(change):.1f}%")
-
-# ========== 本周数据观察 ==========
-st.markdown("### 📌 " + ("本周数据观察" if lang == "zh" else "Weekly Data Snapshot"))
+# ========== 近7天数据洞察 ==========
+title_7d = "📌 近7天数据洞察" if lang == "zh" else "📌 Last 7 Days Insights"
+st.markdown(f"### {title_7d}")
 
 latest_date = filtered_df["日期"].max()
 week_start = latest_date - pd.Timedelta(days=7)
@@ -71,13 +60,13 @@ if not week_origin.empty:
     col_a, col_b = st.columns(2)
     with col_a:
         st.metric(
-            "本周最低报价" if lang == "zh" else "Lowest This Week",
+            "近7天最低报价" if lang == "zh" else "Lowest (7d)",
             f"{lowest['均价(元/kg)']:.1f} {t('yuan_per_kg')}",
             f"{lowest['产地']} · {lowest['品种规格']}"
         )
     with col_b:
         st.metric(
-            "本周最高报价" if lang == "zh" else "Highest This Week",
+            "近7天最高报价" if lang == "zh" else "Highest (7d)",
             f"{highest['均价(元/kg)']:.1f} {t('yuan_per_kg')}",
             f"{highest['产地']} · {highest['品种规格']}"
         )
@@ -87,24 +76,24 @@ if not week_origin.empty:
 
     if lang == "zh":
         st.markdown(
-            f"- 📅 本周（{week_start.strftime('%m-%d')} 至 {latest_date.strftime('%m-%d')}）"
+            f"- 📅 近7天（{week_start.strftime('%m-%d')} 至 {latest_date.strftime('%m-%d')}）"
             f"共收录 **{len(week_df)}** 条数据\n"
             f"- 📍 覆盖 **{origins_count}** 个产地/渠道\n"
-            f"- 📊 本周产地价格区间跨度：**{price_range:.1f} {t('yuan_per_kg')}**"
+            f"- 📊 价格区间跨度：**{price_range:.1f} {t('yuan_per_kg')}**"
         )
         st.caption("💡 以上数据仅为客观统计，不构成任何采购或投资建议。")
     else:
         st.markdown(
-            f"- 📅 This week ({week_start.strftime('%m-%d')} to {latest_date.strftime('%m-%d')}): "
+            f"- 📅 Last 7 days ({week_start.strftime('%m-%d')} to {latest_date.strftime('%m-%d')}): "
             f"**{len(week_df)}** records\n"
             f"- 📍 Covers **{origins_count}** origins/channels\n"
-            f"- 📊 Price range this week: **{price_range:.1f} {t('yuan_per_kg')}**"
+            f"- 📊 Price range: **{price_range:.1f} {t('yuan_per_kg')}**"
         )
-        st.caption("💡 The above data is for reference only and does not constitute any purchasing or investment advice.")
+        st.caption("💡 For reference only. Not investment advice.")
 else:
-    st.info("本周暂无产地报价数据。" if lang == "zh" else "No origin price data this week.")
+    st.info("近7天暂无产地报价数据。" if lang == "zh" else "No origin data in the last 7 days.")
 
-# 全国均价走势
+# ========== 全国均价走势 ==========
 st.markdown(f"### {t('national_trend_title')}")
 national_trend = filtered_df[filtered_df["产地"] == "全国"].sort_values("日期")
 if not national_trend.empty:
@@ -116,7 +105,12 @@ if not national_trend.empty:
         marker=dict(size=10, line=dict(width=2, color='white')),
         line=dict(width=3, color='#1f77b4')
     )
-    fig.update_layout(hovermode="x unified", xaxis_title="Date" if lang == "en" else "日期", yaxis_title="Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)", height=500)
+    fig.update_layout(
+        hovermode="x unified",
+        xaxis_title="Date" if lang == "en" else "日期",
+        yaxis_title="Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)",
+        height=500
+    )
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info(t("no_data"))
