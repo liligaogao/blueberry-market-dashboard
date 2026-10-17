@@ -66,15 +66,17 @@ else:
 
 st.markdown("---")
 
-# ========== 全国均价走势 (带对比模式) ==========
+# ========== 全国均价走势 ==========
 st.markdown("#### " + ("📈 全国批发均价走势" if lang == "zh" else "📈 National Wholesale Price Trend"))
 
 national_trend = filtered_df[filtered_df["产地"] == "全国"].sort_values("日期")
 if not national_trend.empty:
     compare_mode = st.toggle("开启年份对比模式" if lang == "zh" else "Enable Yearly Comparison", value=False)
 
+    # 手机端图表高度降为 350，防止竖屏下过长
+    chart_height = 350
+
     if compare_mode:
-        # 对比模式：按“月份”对齐，而不是按天
         national_trend["年份"] = national_trend["日期"].dt.year
         national_trend["月份"] = national_trend["日期"].dt.month
 
@@ -83,24 +85,23 @@ if not national_trend.empty:
             labels={"月份": "月份", "均价(元/kg)": "价格 (元/公斤)", "年份": "年份"}
         )
         fig.update_layout(
-            hovermode="x unified", height=500,
-            xaxis=dict(tickmode='linear', tick0=1, dtick=1)  # 强制显示1-12月
+            hovermode="x unified", height=chart_height,
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1)
         )
         fig.update_traces(textposition="top center", textfont=dict(size=11))
     else:
-        # 普通模式：使用 px 画虚线图（不再依赖 go）
         fig = px.line(
             national_trend, x="日期", y="均价(元/kg)", markers=True,
             labels={"日期": "Date" if lang == "en" else "日期",
                     "均价(元/kg)": "Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)"}
         )
         fig.update_traces(
-            line=dict(color='#4B8B3B', width=2, dash='dot'),  # 虚线，弱化趋势
+            line=dict(color='#4B8B3B', width=2, dash='dot'),
             marker=dict(size=10, color='#4B8B3B', line=dict(width=2, color='white')),
             text=national_trend["均价(元/kg)"].apply(lambda x: f"{x:.1f}"),
             textposition="top center", textfont=dict(size=11)
         )
-        fig.update_layout(hovermode="x unified", height=500)
+        fig.update_layout(hovermode="x unified", height=chart_height)
 
     st.caption("📌 注：2024-2025年为关键节点数据，未包含全部月份。等积累更多连续数据后，趋势将更平滑。")
     st.plotly_chart(fig, use_container_width=True)
