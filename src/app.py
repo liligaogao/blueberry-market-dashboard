@@ -1,14 +1,18 @@
 import streamlit as st
+import plotly.express as px
 from streamlit_autorefresh import st_autorefresh
 from utils import load_data, sidebar_filter, t, get_lang
 
 # 页面配置（必须是第一个 Streamlit 命令）
 st.set_page_config(page_title="蓝莓市场行情看板", layout="wide", page_icon="🫐")
 
-# 每 60 秒自动刷新
+# 全局图表主题配置（统一风格）
+px.defaults.template = "plotly_white"
+px.defaults.color_discrete_sequence = ["#4B8B3B", "#1f77b4", "#ff7f0e", "#d62728"]
+
 st_autorefresh(interval=60 * 1000, key="data_refresh")
 
-# ========== 语言切换器（放在侧边栏最顶部） ==========
+# ========== 语言切换器 ==========
 lang_choice = st.sidebar.radio(
     "🌐 Language / 语言",
     options=["中文", "English"],
@@ -29,13 +33,14 @@ filtered_df = sidebar_filter(df)
 st.session_state["df"] = df
 st.session_state["filtered_df"] = filtered_df
 
-# ========== 多页面导航（标题按语言切换） ==========
+# ========== 多页面导航 ==========
 pages = [
     st.Page("pages/home.py",     title=t("nav_home"),     icon="📊", default=True),
     st.Page("pages/origin.py",   title=t("nav_origin"),   icon="📍"),
     st.Page("pages/retail.py",   title=t("nav_retail"),   icon="🛒"),
     st.Page("pages/industry.py", title=t("nav_industry"), icon="🏢"),
     st.Page("pages/data.py",     title=t("nav_data"),     icon="📥"),
+    st.Page("pages/about.py",    title="关于项目 / About", icon="ℹ️"),
 ]
 
 pg = st.navigation(pages)

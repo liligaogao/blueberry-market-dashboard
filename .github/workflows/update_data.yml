@@ -1,0 +1,37 @@
+name: Auto Update Data
+
+on:
+  schedule:
+    # 定时任务：每周一 UTC 时间 00:00（北京时间早上 8 点）
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # 这一行很重要，它允许你在网页上手动点按钮测试
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 拉取代码
+      uses: actions/checkout@v3
+
+    - name: 配置 Python 环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas openpyxl
+
+    - name: 运行数据清洗脚本
+      run: |
+        python src/process_data.py
+
+    - name: 提交并推送更新的数据
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add data/processed/*.csv
+        git commit -m "Auto update: 清洗数据自动更新" || echo "没有新的数据变化"
+        git push
