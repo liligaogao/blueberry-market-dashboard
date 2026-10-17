@@ -35,7 +35,12 @@ if geo_dim == "省份级":
 elif geo_dim == "城市级":
     group_col = "城市"
 else:
-    group_col = "产地"
+    # 在具体产地维度下，如果包含具体的区县/市场，就用“城市+区县”拼接，否则用原产地
+    origin_df["短产地"] = origin_df.apply(
+        lambda row: f"{row['城市']}{row['区县/市场']}" if row['区县/市场'] != row['城市'] else row['产地'],
+        axis=1
+    )
+    group_col = "短产地"
 
 # 动态汇总数据
 origin_summary = origin_df.groupby(group_col).agg(
