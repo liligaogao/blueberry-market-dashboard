@@ -55,7 +55,7 @@ origin_summary["颜色深度"] = origin_summary["样本数"].apply(lambda n: 1.0
 fig1 = px.bar(
     origin_summary, x="均价", y="产地", orientation="h",
     text="均价", color="均价",
-    color_continuous_scale="Tealgrn",
+    color_continuous_scale="Purples",  # 换成紫色渐变，完美呼应蓝莓主题
     labels={"均价": t("avg_price_col"), "产地": ""},
     hover_data={"样本数": True, "最高价": ":.1f", "最低价": ":.1f", "数据日期范围": True}
 )
