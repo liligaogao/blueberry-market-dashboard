@@ -105,30 +105,56 @@ if not reliable.empty:
 
 st.markdown("---")
 
-# ========== 互动 1：进货成本模拟器 ==========
+# ========== 互动 1：进货成本模拟器（已加年份过滤） ==========
 st.markdown("### 🛒 进货成本模拟器")
-st.caption("假设您要进货，拖动下方滑块测算预估成本（基于近期均价）。")
+st.caption("请先选择年份和产地，再拖动滑块测算预估成本（基于该年份的近期均价）。")
 
-col_calc_1, col_calc_2 = st.columns(2)
-with col_calc_1:
-    origins = sorted(origin_summary["产地"].unique().tolist())
-    selected_origin = st.selectbox("选择意向产地", origins)
-with col_calc_2:
-    weight = st.number_input("输入进货重量 (公斤)", min_value=10, max_value=10000, value=100, step=50)
+col_year, col_origin, col_weight = st.columns(3)
 
-if selected_origin and weight:
-    target_row = origin_summary[origin_summary["产地"] == selected_origin].iloc[0]
-    avg_price = target_row["均价"]
-    total_cost = avg_price * weight
+with col_year:
+    # 提取所有可用年份，按从新到旧排序
+    available_years = sorted(filtered_df["日期"].dt.year.unique().tolist(), reverse=True)
+    selected_year = st.selectbox("选择年份", available_years)
 
-    st.info(f"📊 **测算结果**：**{selected_origin}** 的近期均价约为 **{avg_price:.2f} 元/公斤**。\n\n"
-            f"进货 **{weight} 公斤**，预计总成本为：**{total_cost:,.2f} 元**。")
+# 根据选定的年份过滤数据
+year_df = filtered_df[filtered_df["日期"].dt.year == selected_year].copy()
+year_origin_df = year_df[year_df["产地"] != "全国"].copy()
 
-    cheapest = origin_summary.iloc[0]
-    if cheapest["产地"] != selected_origin:
-        save_cost = (avg_price - cheapest["均价"]) * weight
-        st.success(f"💡 **采购建议**：如果您选择全市场均价最低的 **{cheapest['产地']}**（{cheapest['均价']:.2f} 元/公斤），"
-                   f"同样的重量可以省下 **{save_cost:,.2f} 元**！")
+if not year_origin_df.empty:
+    # 重新计算该年份下各产地的均价
+    year_summary = year_origin_df.groupby("产地").agg(
+        均价=("均价(元/kg)", "mean")
+    ).reset_index().sort_values("均价", ascending=True)
+
+    with col_origin:
+        year_origins = sorted(year_summary["产地"].unique().tolist())
+        selected_origin = st.selectbox("选择意向产地", year_origins)
+
+    with col_weight:
+        weight = st.number_input("输入进货重量 (公斤)", min_value=10, max_value=10000, value=100, step=50)
+
+    if selected_origin and weight:
+        # 获取该产地在该年份的均价
+        target_row = year_summary[year_summary["产地"] == selected_origin]
+        if not target_row.empty:
+            avg_price = target_row.iloc[0]["均价"]
+            total_cost = avg_price * weight
+
+            st.info(
+                f"📊 **测算结果（{selected_year}年）**：**{selected_origin}** 的均价约为 **{avg_price:.2f} 元/公斤**。\n\n"
+                f"进货 **{weight} 公斤**，预计总成本为：**{total_cost:,.2f} 元**。")
+
+            # 找该年份全市场最便宜的
+            cheapest = year_summary.iloc[0]
+            if cheapest["产地"] != selected_origin:
+                save_cost = (avg_price - cheapest["均价"]) * weight
+                st.success(
+                    f"💡 **采购建议**：如果您选择当年均价最低的 **{cheapest['产地']}**（{cheapest['均价']:.2f} 元/公斤），"
+                    f"同样的重量可以省下 **{save_cost:,.2f} 元**！")
+        else:
+            st.warning(f"⚠️ 所选产地 {selected_origin} 在 {selected_year} 年暂无数据。")
+else:
+    st.warning(f"⚠️ {selected_year} 年暂无产地报价数据，请换一个年份。")
 
 st.markdown("---")
 
