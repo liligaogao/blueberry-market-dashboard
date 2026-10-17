@@ -2,9 +2,12 @@ name: Auto Update Data
 
 on:
   schedule:
-    # 定时任务：每周一 UTC 时间 00:00（北京时间早上 8 点）
     - cron: '0 0 * * 1'
-  workflow_dispatch: # 这一行很重要，它允许你在网页上手动点按钮测试
+  workflow_dispatch:
+
+# 授予工作流向仓库写入内容的权限（解决 exit code 128 的核心）
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -12,10 +15,10 @@ jobs:
 
     steps:
     - name: 拉取代码
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5 # 升级版本以兼容 Node.js 24
 
     - name: 配置 Python 环境
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # 升级版本以兼容 Node.js 24
       with:
         python-version: '3.10'
 
