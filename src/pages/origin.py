@@ -55,15 +55,20 @@ origin_summary["颜色深度"] = origin_summary["样本数"].apply(lambda n: 1.0
 fig1 = px.bar(
     origin_summary, x="均价", y="产地", orientation="h",
     text="均价", color="均价",
-    color_continuous_scale="Purples",  # 换成紫色渐变，完美呼应蓝莓主题
+    color_continuous_scale="Purples", # 换成蓝莓紫色渐变
     labels={"均价": t("avg_price_col"), "产地": ""},
     hover_data={"样本数": True, "最高价": ":.1f", "最低价": ":.1f", "数据日期范围": True}
 )
 fig1.update_traces(
-    texttemplate='%{text:.1f}', textposition='outside', textfont=dict(size=14),
+    texttemplate='%{text:.1f}', textposition='outside',
+    textfont=dict(size=13, color="#1A1A1A"),
     marker=dict(opacity=origin_summary["颜色深度"].tolist(), line=dict(width=0))
 )
-fig1.update_layout(showlegend=False, coloraxis_showscale=False, height=600, font=dict(size=14), margin=dict(l=150, r=50, t=30, b=50))
+fig1.update_layout(
+    showlegend=False, coloraxis_showscale=False, height=600,
+    font=dict(size=13, color="#1A1A1A"), # 字体加深
+    margin=dict(l=150, r=50, t=30, b=50)
+)
 st.plotly_chart(fig1, use_container_width=True)
 
 # 图2 明细表

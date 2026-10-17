@@ -38,7 +38,10 @@ if not retail_analysis.empty:
         labels={"果径": "Size (mm)" if get_lang() == "en" else "果径 (mm)", "均价(元/kg)": t("avg_price_col")},
         trendline="ols"
     )
-    fig_scatter.update_layout(height=500, font=dict(size=14))
+    fig_scatter.update_layout(
+        height=450,
+        font=dict(size=13, color="#1A1A1A") # 加深
+    )
     st.plotly_chart(fig_scatter, use_container_width=True)
 else:
     st.info(t("no_data"))
@@ -53,8 +56,14 @@ fig2 = px.bar(
     text="均价(元/kg)",
     labels={"均价(元/kg)": t("avg_price_col"), "规格简化": t("spec"), "产地": t("origin_label")}
 )
-fig2.update_traces(texttemplate='%{text:.1f}', textposition='outside', textfont=dict(size=11))
-fig2.update_layout(xaxis_tickangle=-45, height=600, font=dict(size=14))
+fig2.update_traces(
+    texttemplate='%{text:.1f}', textposition='outside',
+    textfont=dict(size=12, color="#1A1A1A")
+)
+fig2.update_layout(
+    xaxis_tickangle=-45, height=500,
+    font=dict(size=13, color="#1A1A1A") # 加深
+)
 st.plotly_chart(fig2, use_container_width=True)
 
 # 图3

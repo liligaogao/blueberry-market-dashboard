@@ -1,10 +1,6 @@
 [theme]
-# 主色调：深邃的蓝莓紫（用于按钮、选中的标签、滑块等）
-primaryColor = "#5A4B81"
-# 背景色：极浅的抹茶绿（大面积铺底，非常柔和）
-backgroundColor = "#F2F7F3"
-# 次要背景色：纯白（用于卡片、侧边栏，凸显层次）
+primaryColor = "#5A4B81"            # 深蓝莓紫
+backgroundColor = "#F4F8F5"         # 背景保留微弱的浅绿
 secondaryBackgroundColor = "#FFFFFF"
-# 文字颜色：深墨灰（比纯黑柔和，带一点点绿意）
-textColor = "#2C3E2E"
+textColor = "#1A1A1A"               # 改成极深灰黑，对比度拉满
 font = "sans serif"

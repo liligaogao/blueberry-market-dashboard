@@ -73,8 +73,7 @@ national_trend = filtered_df[filtered_df["产地"] == "全国"].sort_values("日
 if not national_trend.empty:
     compare_mode = st.toggle("开启年份对比模式" if lang == "zh" else "Enable Yearly Comparison", value=False)
 
-    # 手机端图表高度降为 350，防止竖屏下过长
-    chart_height = 350
+    chart_height = 380
 
     if compare_mode:
         national_trend["年份"] = national_trend["日期"].dt.year
@@ -86,9 +85,10 @@ if not national_trend.empty:
         )
         fig.update_layout(
             hovermode="x unified", height=chart_height,
-            xaxis=dict(tickmode='linear', tick0=1, dtick=1)
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            font=dict(color="#1A1A1A", size=13)  # 字体加深加大
         )
-        fig.update_traces(textposition="top center", textfont=dict(size=11))
+        fig.update_traces(textposition="top center", textfont=dict(size=11, color="#1A1A1A"))
     else:
         fig = px.line(
             national_trend, x="日期", y="均价(元/kg)", markers=True,
@@ -99,9 +99,12 @@ if not national_trend.empty:
             line=dict(color='#4B8B3B', width=2, dash='dot'),
             marker=dict(size=10, color='#4B8B3B', line=dict(width=2, color='white')),
             text=national_trend["均价(元/kg)"].apply(lambda x: f"{x:.1f}"),
-            textposition="top center", textfont=dict(size=11)
+            textposition="top center", textfont=dict(size=12, color="#1A1A1A")
         )
-        fig.update_layout(hovermode="x unified", height=chart_height)
+        fig.update_layout(
+            hovermode="x unified", height=chart_height,
+            font=dict(color="#1A1A1A", size=13)  # 字体加深加大
+        )
 
     st.caption("📌 注：2024-2025年为关键节点数据，未包含全部月份。等积累更多连续数据后，趋势将更平滑。")
     st.plotly_chart(fig, use_container_width=True)
