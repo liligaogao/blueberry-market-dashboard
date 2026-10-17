@@ -1,3 +1,71 @@
+import streamlit as st
+import plotly.express as px
+import pandas as pd
+from utils import t, get_lang
+
+st.title(t("home_title"))
+
+filtered_df = st.session_state.get("filtered_df")
+if filtered_df is None or filtered_df.empty:
+    st.warning(t("no_data"))
+    st.stop()
+
+lang = get_lang()
+
+# ========== 关键指标 ==========
+st.markdown(f"#### {t('key_metrics')}")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(t("data_count"), len(filtered_df))
+
+with col2:
+    national_data = filtered_df[
+        (filtered_df["产地"] == "全国") &
+        (filtered_df["品种规格"].isin(["批发均价", "蓝莓"]))
+        ].sort_values("日期")
+    if not national_data.empty:
+        latest = national_data.iloc[-1]
+        st.metric(
+            f"{t('latest_price')} ({latest['日期'].strftime('%Y-%m-%d')})",
+            f"{latest['均价(元/kg)']:.2f} {t('yuan_per_kg')}"
+        )
+    else:
+        st.metric(t("avg_price_col"), f"{filtered_df['均价(元/kg)'].median():.2f}")
+
+with col3:
+    latest_year = filtered_df["日期"].max().year
+    this_year_df = filtered_df[filtered_df["日期"].dt.year == latest_year]
+    if not this_year_df.empty:
+        max_price_this_year = this_year_df["均价(元/kg)"].max()
+        label = f"{latest_year}年最高价" if lang == "zh" else f"{latest_year} Max Price"
+        st.metric(label, f"{max_price_this_year:.2f}" if pd.notna(max_price_this_year) else "N/A")
+    else:
+        st.metric(t("max_price"), "N/A")
+
+st.markdown("---")
+
+# ========== 近7天数据洞察 ==========
+st.markdown("#### " + ("📌 近7天数据洞察" if lang == "zh" else "📌 Last 7 Days Insights"))
+latest_date = filtered_df["日期"].max()
+week_start = latest_date - pd.Timedelta(days=7)
+week_origin = filtered_df[(filtered_df["日期"] >= week_start) & (filtered_df["产地"] != "全国")]
+
+if not week_origin.empty:
+    lowest = week_origin.loc[week_origin["均价(元/kg)"].idxmin()]
+    highest = week_origin.loc[week_origin["均价(元/kg)"].idxmax()]
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.metric("近7天最低报价" if lang == "zh" else "Lowest (7d)", f"{lowest['均价(元/kg)']:.1f} {t('yuan_per_kg')}",
+                  f"{lowest['产地']} · {lowest['品种规格']}")
+    with col_b:
+        st.metric("近7天最高报价" if lang == "zh" else "Highest (7d)",
+                  f"{highest['均价(元/kg)']:.1f} {t('yuan_per_kg')}", f"{highest['产地']} · {highest['品种规格']}")
+else:
+    st.info("近7天暂无产地报价数据。" if lang == "zh" else "No origin data.")
+
+st.markdown("---")
+
 # ========== 全国均价走势 (带对比模式) ==========
 st.markdown("#### " + ("📈 全国批发均价走势" if lang == "zh" else "📈 National Wholesale Price Trend"))
 
@@ -20,21 +88,19 @@ if not national_trend.empty:
         )
         fig.update_traces(textposition="top center", textfont=dict(size=11))
     else:
-        # 普通模式：散点 + 极细虚线连接，弱化“强行连线”的违和感
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=national_trend["日期"], y=national_trend["均价(元/kg)"],
-            mode='lines+markers+text',
+        # 普通模式：使用 px 画虚线图（不再依赖 go）
+        fig = px.line(
+            national_trend, x="日期", y="均价(元/kg)", markers=True,
+            labels={"日期": "Date" if lang == "en" else "日期",
+                    "均价(元/kg)": "Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)"}
+        )
+        fig.update_traces(
             line=dict(color='#4B8B3B', width=2, dash='dot'),  # 虚线，弱化趋势
             marker=dict(size=10, color='#4B8B3B', line=dict(width=2, color='white')),
             text=national_trend["均价(元/kg)"].apply(lambda x: f"{x:.1f}"),
             textposition="top center", textfont=dict(size=11)
-        ))
-        fig.update_layout(
-            hovermode="x unified", height=500,
-            xaxis_title="Date" if lang == "en" else "日期",
-            yaxis_title="Price (yuan/kg)" if lang == "en" else "价格 (元/公斤)"
         )
+        fig.update_layout(hovermode="x unified", height=500)
 
     st.caption("📌 注：2024-2025年为关键节点数据，未包含全部月份。等积累更多连续数据后，趋势将更平滑。")
     st.plotly_chart(fig, use_container_width=True)
