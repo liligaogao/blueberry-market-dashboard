@@ -21,26 +21,27 @@ if origin_df.empty:
     st.info(t("no_data"))
     st.stop()
 
-# ========== 新增：地理维度切换 ==========
-st.markdown("### 🔍 切换查看维度")
-geo_dim = st.radio(
-    "选择你想查看的地理颗粒度：",
-    options=["具体产地（区县/市场）", "城市级", "省份级"],
-    horizontal=True,
-    label_visibility="collapsed"
-)
+# ========== 安全检查：确保数据包含省市列 ==========
+has_geo_cols = "省份" in filtered_df.columns and "城市" in filtered_df.columns
 
-if geo_dim == "省份级":
-    group_col = "省份"
-elif geo_dim == "城市级":
-    group_col = "城市"
-else:
-    # 在具体产地维度下，如果包含具体的区县/市场，就用“城市+区县”拼接，否则用原产地
-    origin_df["短产地"] = origin_df.apply(
-        lambda row: f"{row['城市']}{row['区县/市场']}" if row['区县/市场'] != row['城市'] else row['产地'],
-        axis=1
+if has_geo_cols:
+    st.markdown("### 🔍 切换查看维度")
+    geo_dim = st.radio(
+        "选择你想查看的地理颗粒度：",
+        options=["具体产地（区县/市场）", "城市级", "省份级"],
+        horizontal=True,
+        label_visibility="collapsed"
     )
-    group_col = "短产地"
+
+    if geo_dim == "省份级":
+        group_col = "省份"
+    elif geo_dim == "城市级":
+        group_col = "城市"
+    else:
+        group_col = "产地"
+else:
+    st.warning("⚠️ 云端数据尚未包含省市维度，请将最新的 CSV 推送到 GitHub。当前默认展示具体产地。")
+    group_col = "产地"
 
 # 动态汇总数据
 origin_summary = origin_df.groupby(group_col).agg(
@@ -73,7 +74,7 @@ origin_summary["参考性"] = origin_summary["样本数"].apply(reference_level)
 origin_summary = origin_summary.sort_values("均价", ascending=True)
 
 # ========== 图1：平均价格对比 ==========
-st.subheader(f"{t('origin_avg_title')} - {geo_dim}")
+st.subheader(f"{t('origin_avg_title')} - {geo_dim if has_geo_cols else '具体产地'}")
 st.caption(t("origin_avg_note"))
 
 origin_summary["颜色深度"] = origin_summary["样本数"].apply(lambda n: 1.0 if n >= 2 else 0.35)
@@ -102,7 +103,7 @@ st.subheader(t("origin_detail_title"))
 st.dataframe(
     origin_summary[["地区名称", "均价", "最高价", "最低价", "样本数", "参考性", "数据日期范围"]],
     use_container_width=True,
-    hide_index=True,  # <--- 加上这一行
+    hide_index=True,
     column_config={
         "地区名称": "地区名称",
         "均价": st.column_config.NumberColumn(t("avg_price_col"), format="%.1f"),
@@ -129,7 +130,7 @@ if not reliable.empty:
 
 st.markdown("---")
 
-# ========== 互动 1：进货成本模拟器（适配地理维度） ==========
+# ========== 互动 1：进货成本模拟器 ==========
 st.markdown("### 🛒 进货成本模拟器")
 st.caption("请先选择年份和地区，再拖动滑块测算预估成本。")
 
@@ -143,11 +144,13 @@ year_df = filtered_df[filtered_df["日期"].dt.year == selected_year].copy()
 year_origin_df = year_df[year_df["产地"] != "全国"].copy()
 
 if not year_origin_df.empty:
-    # 根据当前选中的维度计算均价
-    year_summary = year_origin_df.groupby(group_col).agg(
+    # 安全检查：确保使用的列存在
+    actual_group_col = group_col if group_col in year_origin_df.columns else "产地"
+
+    year_summary = year_origin_df.groupby(actual_group_col).agg(
         均价=("均价(元/kg)", "mean")
     ).reset_index().sort_values("均价", ascending=True)
-    year_summary = year_summary.rename(columns={group_col: "地区名称"})
+    year_summary = year_summary.rename(columns={actual_group_col: "地区名称"})
 
     with col_origin:
         year_origins = sorted(year_summary["地区名称"].unique().tolist())
@@ -163,7 +166,7 @@ if not year_origin_df.empty:
             total_cost = avg_price * weight
 
             st.info(
-                f"📊 **测算结果（{selected_year}年，{geo_dim}）**：**{selected_origin}** 的均价约为 **{avg_price:.2f} 元/公斤**。\n\n"
+                f"📊 **测算结果（{selected_year}年）**：**{selected_origin}** 的均价约为 **{avg_price:.2f} 元/公斤**。\n\n"
                 f"进货 **{weight} 公斤**，预计总成本为：**{total_cost:,.2f} 元**。")
 
             cheapest = year_summary.iloc[0]
@@ -181,13 +184,19 @@ st.markdown("---")
 with st.expander("🛠️ 进阶探索：自定义图表生成器"):
     st.markdown("自己动手，探索数据中隐藏的关联关系。")
 
+    # 动态获取可用字段
+    available_cols = ["日期", "月份", "产地", "果径(mm)"]
+    if has_geo_cols:
+        available_cols.extend(["省份", "城市"])
+
     col_x, col_y, col_c = st.columns(3)
     with col_x:
-        x_axis = st.selectbox("X轴（横轴）", ["日期", "月份", "省份", "城市", "产地", "果径(mm)"])
+        x_axis = st.selectbox("X轴（横轴）", available_cols)
     with col_y:
         y_axis = st.selectbox("Y轴（纵轴）", ["均价(元/kg)", "最高价(元/kg)", "最低价(元/kg)"])
     with col_c:
-        color_by = st.selectbox("颜色分类", ["产地", "城市", "省份", "渠道类型", "等级", None])
+        color_options = ["产地", "渠道类型", "等级"] + (["省份", "城市"] if has_geo_cols else []) + [None]
+        color_by = st.selectbox("颜色分类", color_options)
 
     fig_custom = px.scatter(
         filtered_df, x=x_axis, y=y_axis, color=color_by,
