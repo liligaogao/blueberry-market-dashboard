@@ -86,7 +86,7 @@ if not national_trend.empty:
         fig.update_layout(
             hovermode="x unified", height=chart_height,
             xaxis=dict(tickmode='linear', tick0=1, dtick=1),
-            font=dict(color="#1A1A1A", size=13)  # 字体加深加大
+            font=dict(color="#1A1A1A", size=13)
         )
         fig.update_traces(textposition="top center", textfont=dict(size=11, color="#1A1A1A"))
     else:
@@ -103,10 +103,23 @@ if not national_trend.empty:
         )
         fig.update_layout(
             hovermode="x unified", height=chart_height,
-            font=dict(color="#1A1A1A", size=13)  # 字体加深加大
+            font=dict(color="#1A1A1A", size=13)
         )
 
     st.caption("📌 注：2024-2025年为关键节点数据，未包含全部月份。等积累更多连续数据后，趋势将更平滑。")
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("暂无全国均价数据。" if lang == "zh" else "No national trend data.")
+
+# ========== 行情盲猜投票 ==========
+st.markdown("---")
+st.markdown("### 🔮 下周行情竞猜")
+st.caption("纯属娱乐，测测你的市场直觉，不构成任何投资建议。")
+
+col_up, col_down = st.columns(2)
+with col_up:
+    if st.button("📈 我看涨（价格会升）", use_container_width=True):
+        st.toast("收到！祝你下周进货顺利，财源广进！", icon="🚀")
+with col_down:
+    if st.button("📉 我看跌（价格会降）", use_container_width=True):
+        st.toast("收到！再观望观望，捂紧钱包也是个好选择！", icon="👀")
