@@ -21,7 +21,24 @@ if origin_df.empty:
     st.info(t("no_data"))
     st.stop()
 
-origin_summary = origin_df.groupby("产地").agg(
+# ========== 新增：地理维度切换 ==========
+st.markdown("### 🔍 切换查看维度")
+geo_dim = st.radio(
+    "选择你想查看的地理颗粒度：",
+    options=["具体产地（区县/市场）", "城市级", "省份级"],
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+if geo_dim == "省份级":
+    group_col = "省份"
+elif geo_dim == "城市级":
+    group_col = "城市"
+else:
+    group_col = "产地"
+
+# 动态汇总数据
+origin_summary = origin_df.groupby(group_col).agg(
     均价=("均价(元/kg)", "mean"),
     最高价=("均价(元/kg)", "max"),
     最低价=("均价(元/kg)", "min"),
@@ -35,6 +52,7 @@ origin_summary["数据日期范围"] = (
         origin_summary["最晚日期"].dt.strftime("%Y-%m-%d")
 )
 origin_summary = origin_summary.drop(columns=["最早日期", "最晚日期"])
+origin_summary = origin_summary.rename(columns={group_col: "地区名称"})
 
 
 def reference_level(n):
@@ -49,17 +67,17 @@ def reference_level(n):
 origin_summary["参考性"] = origin_summary["样本数"].apply(reference_level)
 origin_summary = origin_summary.sort_values("均价", ascending=True)
 
-# ========== 图1：各产区平均价格对比 ==========
-st.subheader(t("origin_avg_title"))
+# ========== 图1：平均价格对比 ==========
+st.subheader(f"{t('origin_avg_title')} - {geo_dim}")
 st.caption(t("origin_avg_note"))
 
 origin_summary["颜色深度"] = origin_summary["样本数"].apply(lambda n: 1.0 if n >= 2 else 0.35)
 
 fig1 = px.bar(
-    origin_summary, x="均价", y="产地", orientation="h",
+    origin_summary, x="均价", y="地区名称", orientation="h",
     text="均价", color="均价",
     color_continuous_scale="Purples",
-    labels={"均价": t("avg_price_col"), "产地": ""},
+    labels={"均价": t("avg_price_col"), "地区名称": ""},
     hover_data={"样本数": True, "最高价": ":.1f", "最低价": ":.1f", "数据日期范围": True}
 )
 fig1.update_traces(
@@ -68,7 +86,7 @@ fig1.update_traces(
     marker=dict(opacity=origin_summary["颜色深度"].tolist(), line=dict(width=0))
 )
 fig1.update_layout(
-    showlegend=False, coloraxis_showscale=False, height=600,
+    showlegend=False, coloraxis_showscale=False, height=max(400, len(origin_summary) * 30),
     font=dict(size=13, color="#1A1A1A"),
     margin=dict(l=150, r=50, t=30, b=50)
 )
@@ -77,10 +95,10 @@ st.plotly_chart(fig1, use_container_width=True)
 # ========== 图2：明细表 ==========
 st.subheader(t("origin_detail_title"))
 st.dataframe(
-    origin_summary[["产地", "均价", "最高价", "最低价", "样本数", "参考性", "数据日期范围"]],
+    origin_summary[["地区名称", "均价", "最高价", "最低价", "样本数", "参考性", "数据日期范围"]],
     use_container_width=True,
     column_config={
-        "产地": t("origin_col"),
+        "地区名称": "地区名称",
         "均价": st.column_config.NumberColumn(t("avg_price_col"), format="%.1f"),
         "最高价": st.column_config.NumberColumn(t("max_price_col"), format="%.1f"),
         "最低价": st.column_config.NumberColumn(t("min_price_col"), format="%.1f"),
@@ -98,61 +116,56 @@ if not reliable.empty:
     worst = reliable.iloc[-1]
     gap = worst["均价"] - best["均价"]
     st.success(
-        f"**{best['产地']}** ({best['均价']:.1f} {t('yuan_per_kg')}, n={int(best['样本数'])}) vs "
-        f"**{worst['产地']}** ({worst['均价']:.1f} {t('yuan_per_kg')}) | "
+        f"**{best['地区名称']}** ({best['均价']:.1f} {t('yuan_per_kg')}, n={int(best['样本数'])}) vs "
+        f"**{worst['地区名称']}** ({worst['均价']:.1f} {t('yuan_per_kg')}) | "
         f"{t('price_gap')}: **{gap:.1f} {t('yuan_per_kg')}**"
     )
 
 st.markdown("---")
 
-# ========== 互动 1：进货成本模拟器（已加年份过滤） ==========
+# ========== 互动 1：进货成本模拟器（适配地理维度） ==========
 st.markdown("### 🛒 进货成本模拟器")
-st.caption("请先选择年份和产地，再拖动滑块测算预估成本（基于该年份的近期均价）。")
+st.caption("请先选择年份和地区，再拖动滑块测算预估成本。")
 
 col_year, col_origin, col_weight = st.columns(3)
 
 with col_year:
-    # 提取所有可用年份，按从新到旧排序
     available_years = sorted(filtered_df["日期"].dt.year.unique().tolist(), reverse=True)
     selected_year = st.selectbox("选择年份", available_years)
 
-# 根据选定的年份过滤数据
 year_df = filtered_df[filtered_df["日期"].dt.year == selected_year].copy()
 year_origin_df = year_df[year_df["产地"] != "全国"].copy()
 
 if not year_origin_df.empty:
-    # 重新计算该年份下各产地的均价
-    year_summary = year_origin_df.groupby("产地").agg(
+    # 根据当前选中的维度计算均价
+    year_summary = year_origin_df.groupby(group_col).agg(
         均价=("均价(元/kg)", "mean")
     ).reset_index().sort_values("均价", ascending=True)
+    year_summary = year_summary.rename(columns={group_col: "地区名称"})
 
     with col_origin:
-        year_origins = sorted(year_summary["产地"].unique().tolist())
-        selected_origin = st.selectbox("选择意向产地", year_origins)
+        year_origins = sorted(year_summary["地区名称"].unique().tolist())
+        selected_origin = st.selectbox("选择意向地区", year_origins)
 
     with col_weight:
         weight = st.number_input("输入进货重量 (公斤)", min_value=10, max_value=10000, value=100, step=50)
 
     if selected_origin and weight:
-        # 获取该产地在该年份的均价
-        target_row = year_summary[year_summary["产地"] == selected_origin]
+        target_row = year_summary[year_summary["地区名称"] == selected_origin]
         if not target_row.empty:
             avg_price = target_row.iloc[0]["均价"]
             total_cost = avg_price * weight
 
             st.info(
-                f"📊 **测算结果（{selected_year}年）**：**{selected_origin}** 的均价约为 **{avg_price:.2f} 元/公斤**。\n\n"
+                f"📊 **测算结果（{selected_year}年，{geo_dim}）**：**{selected_origin}** 的均价约为 **{avg_price:.2f} 元/公斤**。\n\n"
                 f"进货 **{weight} 公斤**，预计总成本为：**{total_cost:,.2f} 元**。")
 
-            # 找该年份全市场最便宜的
             cheapest = year_summary.iloc[0]
-            if cheapest["产地"] != selected_origin:
+            if cheapest["地区名称"] != selected_origin:
                 save_cost = (avg_price - cheapest["均价"]) * weight
                 st.success(
-                    f"💡 **采购建议**：如果您选择当年均价最低的 **{cheapest['产地']}**（{cheapest['均价']:.2f} 元/公斤），"
+                    f"💡 **采购建议**：如果您选择当年均价最低的 **{cheapest['地区名称']}**（{cheapest['均价']:.2f} 元/公斤），"
                     f"同样的重量可以省下 **{save_cost:,.2f} 元**！")
-        else:
-            st.warning(f"⚠️ 所选产地 {selected_origin} 在 {selected_year} 年暂无数据。")
 else:
     st.warning(f"⚠️ {selected_year} 年暂无产地报价数据，请换一个年份。")
 
@@ -164,11 +177,11 @@ with st.expander("🛠️ 进阶探索：自定义图表生成器"):
 
     col_x, col_y, col_c = st.columns(3)
     with col_x:
-        x_axis = st.selectbox("X轴（横轴）", ["日期", "月份", "产地", "果径(mm)", "省份"])
+        x_axis = st.selectbox("X轴（横轴）", ["日期", "月份", "省份", "城市", "产地", "果径(mm)"])
     with col_y:
         y_axis = st.selectbox("Y轴（纵轴）", ["均价(元/kg)", "最高价(元/kg)", "最低价(元/kg)"])
     with col_c:
-        color_by = st.selectbox("颜色分类", ["产地", "渠道类型", "等级", "省份", None])
+        color_by = st.selectbox("颜色分类", ["产地", "城市", "省份", "渠道类型", "等级", None])
 
     fig_custom = px.scatter(
         filtered_df, x=x_axis, y=y_axis, color=color_by,

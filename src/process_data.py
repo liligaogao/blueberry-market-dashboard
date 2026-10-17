@@ -29,22 +29,59 @@ def classify_channel(row):
     return "产地"
 
 
-def extract_province(origin):
-    """从产地名称中提取省份"""
-    origin = str(origin)
+def parse_location(origin):
+    """
+    精准解析产地为：省份、城市、区县/具体地点
+    返回格式：(省份, 城市, 区县)
+    """
+    origin = str(origin).strip()
+
+    # 特殊处理非具体地名
+    if not origin or origin in ["全国", "进口", "全国超市", "市场", "其他", "全国-产地货源", "全国-销地批发"]:
+        return "全国/特殊", "全国/特殊", origin
+
+    # 直辖市
+    municipalities = ["北京", "上海", "天津", "重庆"]
+    for m in municipalities:
+        if origin.startswith(m):
+            rest = origin[len(m):]
+            return m, m, rest if rest else m
+
+    # 普通省份
     provinces = [
         "云南", "山东", "辽宁", "江苏", "四川", "浙江", "福建", "山西",
-        "广东", "北京", "上海", "安徽", "湖南", "湖北", "河南", "河北",
-        "陕西", "贵州", "广西", "江西", "重庆", "天津", "黑龙江", "吉林"
+        "广东", "安徽", "湖南", "湖北", "河南", "河北", "陕西", "贵州",
+        "广西", "江西", "黑龙江", "吉林", "海南", "新疆", "内蒙古", "宁夏",
+        "青海", "甘肃", "西藏"
     ]
+
     for p in provinces:
         if origin.startswith(p):
-            return p
-    if "全国" in origin:
-        return "全国"
-    if "进口" in origin:
-        return "进口"
-    return "其他"
+            rest = origin[len(p):]
+            if not rest:
+                return p, p, p
+
+            # 尝试匹配地级市（以 市/州/盟/地区 结尾）
+            match_city = re.match(r'(.{2,4}?[市州盟])', rest)
+            if match_city:
+                city = match_city.group(1).replace("市", "").replace("州", "").replace("盟", "")
+                remaining = rest[len(match_city.group(1)):]
+                return p, city, remaining if remaining else match_city.group(1)
+
+            # 尝试匹配县/区/旗
+            match_county = re.match(r'(.{2,4}?[区县旗])', rest)
+            if match_county:
+                # 如果直接是县，说明没有地级市（或者被跳过），城市未知
+                return p, "未知市", match_county.group(1)
+
+            # 没有“市/州/县”后缀的，默认取前2个字作为城市，剩下的作为区县
+            if len(rest) >= 2:
+                return p, rest[:2], rest[2:] if len(rest) > 2 else rest
+            else:
+                return p, rest, rest
+
+    # 如果都不匹配，兜底处理
+    return "其他", "其他", origin
 
 
 def extract_diameter(spec):
@@ -145,7 +182,13 @@ def clean_blueberry_data():
     df_final["月份"] = df_final["日期"].dt.month
     df_final["周次"] = df_final["日期"].dt.isocalendar().week
     df_final["渠道类型"] = df_final.apply(classify_channel, axis=1)
-    df_final["省份"] = df_final["产地"].apply(extract_province)
+
+    # 精准拆分省市县
+    location_df = df_final["产地"].apply(parse_location).apply(pd.Series)
+    df_final["省份"] = location_df[0]
+    df_final["城市"] = location_df[1]
+    df_final["区县/市场"] = location_df[2]
+
     df_final["果径(mm)"] = df_final["品种规格"].apply(extract_diameter)
     df_final["等级"] = df_final["品种规格"].apply(extract_grade)
 
@@ -153,9 +196,7 @@ def clean_blueberry_data():
     df_final.to_csv(CLEAN_CSV_PATH, index=False, encoding="utf-8-sig")
     print(f"✅ 清洗完成！已保存为 {CLEAN_CSV_PATH}")
     print(f"   共处理 {len(df_final)} 条数据。")
-    print(f"   新增字段：年份、月份、周次、渠道类型、省份、果径(mm)、等级")
-    print(f"   渠道分布：{df_final['渠道类型'].value_counts().to_dict()}")
-    print(f"   省份分布：{df_final['省份'].value_counts().to_dict()}")
+    print(f"   新增字段：年份、月份、周次、渠道类型、省份、城市、区县/市场、果径(mm)、等级")
     return df_final
 
 
