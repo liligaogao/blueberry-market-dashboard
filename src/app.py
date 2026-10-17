@@ -11,49 +11,50 @@ px.defaults.template = "plotly_white"
 px.defaults.color_discrete_sequence = ["#4B8B3B", "#1f77b4", "#ff7f0e", "#d62728"]
 
 # ========== 全局字体与移动端适配 CSS ==========
+# 注意：<style> 必须顶格写，前面不能有空格，否则会被当成代码块显示出来
 st.markdown("""
-    <style>
-    /* 1. 强制加粗全局的常规文本和列表 */
-    .stMarkdown p, .stMarkdown li {
-        font-size: 1.05rem !important; 
-        font-weight: 500 !important;   
-        color: #1A1A1A !important;     
-    }
+<style>
+/* 1. 强制加粗全局的常规文本和列表 */
+.stMarkdown p, .stMarkdown li {
+    font-size: 1.05rem !important; 
+    font-weight: 500 !important;   
+    color: #1A1A1A !important;     
+}
 
-    /* 2. 放大并加粗所有标题 (H1, H2, H3, H4) */
-    h1, h2, h3, h4 {
-        color: #1A1A1A !important;
-        font-weight: 700 !important;
-    }
+/* 2. 放大并加粗所有标题 (H1, H2, H3, H4) */
+h1, h2, h3, h4 {
+    color: #1A1A1A !important;
+    font-weight: 700 !important;
+}
 
-    /* 3. 让指标卡（数字）更大、标签更清晰 */
+/* 3. 让指标卡（数字）更大、标签更清晰 */
+[data-testid="stMetricValue"] {
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    color: #1A1A1A !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: #333333 !important;
+}
+
+/* 4. 针对手机屏幕 (宽度小于 768px) 的样式 */
+@media (max-width: 768px) {
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+        padding-left: 0.8rem !important;
+        padding-right: 0.8rem !important;
+    }
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.2rem !important; }
     [data-testid="stMetricValue"] {
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        color: #1A1A1A !important;
+        font-size: 1.8rem !important;
     }
-    [data-testid="stMetricLabel"] {
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-        color: #333333 !important;
-    }
-
-    /* 4. 针对手机屏幕 (宽度小于 768px) 的样式 */
-    @media (max-width: 768px) {
-        .block-container {
-            padding-top: 1.5rem !important;
-            padding-bottom: 1.5rem !important;
-            padding-left: 0.8rem !important;
-            padding-right: 0.8rem !important;
-        }
-        h1 { font-size: 1.8rem !important; }
-        h2 { font-size: 1.5rem !important; }
-        h3 { font-size: 1.2rem !important; }
-        [data-testid="stMetricValue"] {
-            font-size: 1.8rem !important;
-        }
-    }
-    </style>
+}
+</style>
 """, unsafe_allow_html=True)
 
 st_autorefresh(interval=60 * 1000, key="data_refresh")
