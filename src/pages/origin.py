@@ -97,6 +97,7 @@ st.subheader(t("origin_detail_title"))
 st.dataframe(
     origin_summary[["地区名称", "均价", "最高价", "最低价", "样本数", "参考性", "数据日期范围"]],
     use_container_width=True,
+    hide_index=True,  # <--- 加上这一行
     column_config={
         "地区名称": "地区名称",
         "均价": st.column_config.NumberColumn(t("avg_price_col"), format="%.1f"),
