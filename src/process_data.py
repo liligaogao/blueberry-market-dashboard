@@ -7,16 +7,28 @@ DATA_DIR = BASE_DIR / "data" / "processed"
 RAW_CSV_PATH = DATA_DIR / "blueberry_prices.csv"
 CLEAN_CSV_PATH = DATA_DIR / "blueberry_prices_clean.csv"
 
-# 预置直辖市和主要地级市字典
-SPECIAL_CITIES = {
-    "北京": "北京", "上海": "上海", "天津": "天津", "重庆": "重庆",
-    "济南": "济南", "青岛": "青岛", "烟台": "烟台", "潍坊": "潍坊",
-    "临沂": "临沂", "日照": "日照", "南京": "南京", "连云港": "连云港",
-    "无锡": "无锡", "常州": "常州", "苏州": "苏州", "嘉兴": "嘉兴",
-    "丹东": "丹东", "大连": "大连", "沈阳": "沈阳", "昆明": "昆明",
-    "玉溪": "玉溪", "红河": "红河", "保山": "保山", "澄江": "澄江",
-    "陆良": "陆良", "深圳": "深圳", "广州": "广州", "福州": "福州",
-    "德阳": "德阳", "太原": "太原"
+# 完善后的城市字典：只要命中这些词，直接提取为城市，绝不乱切
+CITY_MAPPING = {
+    # 直辖市
+    "北京": "直辖市", "上海": "直辖市", "天津": "直辖市", "重庆": "直辖市",
+    # 山东
+    "济南": "山东", "青岛": "山东", "烟台": "山东", "潍坊": "山东", "临沂": "山东", "日照": "山东",
+    # 江苏
+    "南京": "江苏", "连云港": "江苏", "无锡": "江苏", "常州": "江苏", "苏州": "江苏",
+    # 浙江
+    "嘉兴": "浙江", "杭州": "浙江",
+    # 辽宁
+    "丹东": "辽宁", "大连": "辽宁", "沈阳": "辽宁",
+    # 云南
+    "昆明": "云南", "玉溪": "云南", "红河": "云南", "保山": "云南", "澄江": "云南", "陆良": "云南",
+    # 广东
+    "深圳": "广东", "广州": "广东", "珠海": "广东",
+    # 福建
+    "福州": "福建", "厦门": "福建",
+    # 四川
+    "成都": "四川", "德阳": "四川",
+    # 山西
+    "太原": "山西"
 }
 
 
@@ -24,32 +36,12 @@ def classify_channel(row):
     origin = str(row["产地"])
     retail_keywords = ["大润发", "盒马", "超市", "堤口"]
     for kw in retail_keywords:
-        if kw in origin:
-            return "零售"
-    wholesale_keywords = [
-        "全国", "新发地", "上海市场", "江南市场", "海峡市场",
-        "河西市场", "东桥市场", "金马正昌", "鼎信", "昆明市场",
-        "市场", "进口"
-    ]
+        if kw in origin: return "零售"
+    wholesale_keywords = ["全国", "新发地", "上海市场", "江南市场", "海峡市场", "河西市场", "东桥市场", "金马正昌",
+                          "鼎信", "昆明市场", "市场", "进口"]
     for kw in wholesale_keywords:
-        if kw in origin:
-            return "批发"
+        if kw in origin: return "批发"
     return "产地"
-
-
-def clean_suffix(text):
-    """清洗区县/市场名，去掉多余的词，但不破坏正常名称"""
-    if not text:
-        return text
-    # 如果是纯市场/超市，直接返回原名，不要乱切
-    market_keywords = ["超市", "市场", "大润发", "盒马", "鲜生", "批发", "水果"]
-    for kw in market_keywords:
-        if kw in text:
-            return text
-
-    # 正常区县，去掉“市”、“区”、“县”后缀（可选，这里保留原名更清晰）
-    # 如果你想保留原汁原味的区县名，这里直接 return text 就行
-    return text
 
 
 def parse_location(origin):
@@ -59,46 +51,22 @@ def parse_location(origin):
     if not origin or origin in ["全国", "进口", "全国超市", "市场", "其他", "全国-产地货源", "全国-销地批发"]:
         return "全国/特殊", "全国/特殊", origin
 
-    # 2. 处理多产地组合（如 "四川/云南"），取第一个
+    # 2. 处理多产地组合
     if "/" in origin and origin.split("/")[0] in ["四川", "云南", "山东"]:
         origin = origin.split("/")[0]
 
-    # 3. 匹配直辖市和预置城市
-    for city, city_name in SPECIAL_CITIES.items():
-        if origin.startswith(city):
-            province = "直辖市"
-            if city in ["济南", "青岛", "烟台", "潍坊", "临沂", "日照"]:
-                province = "山东"
-            elif city in ["南京", "连云港", "无锡", "常州", "苏州"]:
-                province = "江苏"
-            elif city in ["丹东", "大连", "沈阳"]:
-                province = "辽宁"
-            elif city in ["昆明", "玉溪", "红河", "保山", "澄江", "陆良"]:
-                province = "云南"
-            elif city in ["深圳", "广州"]:
-                province = "广东"
-            elif city in ["嘉兴"]:
-                province = "浙江"
-            elif city in ["德阳"]:
-                province = "四川"
-            elif city in ["太原"]:
-                province = "山西"
+    # 3. 城市字典优先匹配（解决“连云港”被切碎、“济南超市”被切碎的问题）
+    for city, province in CITY_MAPPING.items():
+        if city in origin:
+            # 比如 "济南超市"，找到"济南"，剩下的就是"超市"
+            idx = origin.find(city)
+            county = origin[idx + len(city):]
+            # 如果县级为空，就用城市名
+            if not county:
+                county = city
+            return province, city, county
 
-            rest = origin[len(city):]
-            # 如果后面还有区县，去掉“市”字后缀
-            county = rest
-            if rest.endswith("市"):
-                county = rest[:-1]
-            elif rest.startswith("市"):
-                county = rest[1:]
-
-            # 处理类似 "丹东东港市" -> 城市:丹东, 区县:东港市 (保留原样)
-            if county.startswith(city):
-                county = county[len(city):]
-
-            return province, city, clean_suffix(county) if county else city
-
-    # 4. 通用省份匹配
+    # 4. 通用省份匹配（兜底机制，处理字典里没写的地名）
     provinces = [
         "云南", "山东", "辽宁", "江苏", "四川", "浙江", "福建", "山西",
         "广东", "安徽", "湖南", "湖北", "河南", "河北", "陕西", "贵州",
@@ -112,20 +80,23 @@ def parse_location(origin):
             if not rest:
                 return p, p, p
 
-            # 尝试用正则匹配带“市”的地级市
+            # 尝试提取带“市”字的地级市
             match_city = re.match(r'(.{2,4}?[市州盟])', rest)
             if match_city:
-                city = match_city.group(1)
-                county = rest[len(city):]
-                return p, city.replace("市", ""), clean_suffix(county) if county else city
+                city = match_city.group(1).replace("市", "")
+                county = rest[len(match_city.group(1)):]
+                return p, city, county if county else city
             else:
-                # 如果没带市字，强行截取前2-3个字当城市
+                # 如果没带“市”，且剩下的包含市场/超市，就取前2字当城市
+                if any(kw in rest for kw in ["市场", "超市", "大润发", "水果"]):
+                    return p, rest[:2] if len(rest) >= 2 else rest, rest
+                # 强行切分
                 if len(rest) >= 2:
-                    return p, rest[:2], clean_suffix(rest[2:]) if len(rest) > 2 else rest
+                    return p, rest[:2], rest[2:] if len(rest) > 2 else rest
                 else:
                     return p, rest, rest
 
-    return "其他", "其他", clean_suffix(origin)
+    return "其他", "其他", origin
 
 
 def extract_diameter(spec):
