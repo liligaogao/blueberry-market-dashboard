@@ -7,7 +7,7 @@ DATA_DIR = BASE_DIR / "data" / "processed"
 RAW_CSV_PATH = DATA_DIR / "blueberry_prices.csv"
 CLEAN_CSV_PATH = DATA_DIR / "blueberry_prices_clean.csv"
 
-# 预置直辖市和主要地级市字典，防止被错误切分
+# 预置直辖市和主要地级市字典
 SPECIAL_CITIES = {
     "北京": "北京", "上海": "上海", "天津": "天津", "重庆": "重庆",
     "济南": "济南", "青岛": "青岛", "烟台": "烟台", "潍坊": "潍坊",
@@ -37,6 +37,21 @@ def classify_channel(row):
     return "产地"
 
 
+def clean_suffix(text):
+    """清洗区县/市场名，去掉多余的词，但不破坏正常名称"""
+    if not text:
+        return text
+    # 如果是纯市场/超市，直接返回原名，不要乱切
+    market_keywords = ["超市", "市场", "大润发", "盒马", "鲜生", "批发", "水果"]
+    for kw in market_keywords:
+        if kw in text:
+            return text
+
+    # 正常区县，去掉“市”、“区”、“县”后缀（可选，这里保留原名更清晰）
+    # 如果你想保留原汁原味的区县名，这里直接 return text 就行
+    return text
+
+
 def parse_location(origin):
     origin = str(origin).strip()
 
@@ -48,10 +63,9 @@ def parse_location(origin):
     if "/" in origin and origin.split("/")[0] in ["四川", "云南", "山东"]:
         origin = origin.split("/")[0]
 
-    # 3. 匹配直辖市和预置城市（直接返回该城市，省份需要推导）
+    # 3. 匹配直辖市和预置城市
     for city, city_name in SPECIAL_CITIES.items():
         if origin.startswith(city):
-            # 根据城市反推省份
             province = "直辖市"
             if city in ["济南", "青岛", "烟台", "潍坊", "临沂", "日照"]:
                 province = "山东"
@@ -72,11 +86,17 @@ def parse_location(origin):
 
             rest = origin[len(city):]
             # 如果后面还有区县，去掉“市”字后缀
-            county = rest.replace("市", "").replace("区", "").replace("县", "") if rest else city
-            # 处理类似 "丹东东港市" -> 城市:丹东, 区县:东港
+            county = rest
+            if rest.endswith("市"):
+                county = rest[:-1]
+            elif rest.startswith("市"):
+                county = rest[1:]
+
+            # 处理类似 "丹东东港市" -> 城市:丹东, 区县:东港市 (保留原样)
             if county.startswith(city):
                 county = county[len(city):]
-            return province, city, county if county else city
+
+            return province, city, clean_suffix(county) if county else city
 
     # 4. 通用省份匹配
     provinces = [
@@ -97,25 +117,23 @@ def parse_location(origin):
             if match_city:
                 city = match_city.group(1)
                 county = rest[len(city):]
-                return p, city.replace("市", ""), county if county else city
+                return p, city.replace("市", ""), clean_suffix(county) if county else city
             else:
                 # 如果没带市字，强行截取前2-3个字当城市
                 if len(rest) >= 2:
-                    return p, rest[:2], rest[2:] if len(rest) > 2 else rest
+                    return p, rest[:2], clean_suffix(rest[2:]) if len(rest) > 2 else rest
                 else:
                     return p, rest, rest
 
-    return "其他", "其他", origin
+    return "其他", "其他", clean_suffix(origin)
 
 
 def extract_diameter(spec):
     spec = str(spec)
     match = re.search(r'(\d+)\s*[-~]\s*(\d+)\s*mm', spec)
-    if match:
-        return int(match.group(1))
+    if match: return int(match.group(1))
     match = re.search(r'(\d+)\s*mm', spec)
-    if match:
-        return int(match.group(1))
+    if match: return int(match.group(1))
     return None
 
 
@@ -148,8 +166,7 @@ def clean_blueberry_data():
         end_line = header_lines[idx + 1] - 1 if idx + 1 < len(header_lines) else len(lines)
         chunk_lines = lines[start_line + 1: end_line]
         chunk_lines = [line.strip() for line in chunk_lines if line.strip()]
-        if not chunk_lines:
-            continue
+        if not chunk_lines: continue
 
         header = lines[start_line].strip().split(",")
         header = [h.strip() for h in header if h.strip()]
@@ -169,8 +186,7 @@ def clean_blueberry_data():
     for df in all_dfs:
         df = df.rename(columns={"渠道/产地": "产地", "价格(元/公斤)": "均价(元/kg)"})
         for col in ["最高价(元/kg)", "最低价(元/kg)", "均价(元/kg)", "交易量(吨)", "备注"]:
-            if col not in df.columns:
-                df[col] = None
+            if col not in df.columns: df[col] = None
         cleaned_dfs.append(df)
 
     df_final = pd.concat(cleaned_dfs, ignore_index=True)
@@ -197,7 +213,6 @@ def clean_blueberry_data():
 
     df_final.to_csv(CLEAN_CSV_PATH, index=False, encoding="utf-8-sig")
     print(f"✅ 清洗完成！已保存为 {CLEAN_CSV_PATH}")
-    print(f"   省份分布：{df_final['省份'].value_counts().to_dict()}")
     return df_final
 
 
